@@ -1,4 +1,29 @@
+# =================================================================
+# Dependencias
+# =================================================================
+# Ignorar la carpeta de módulos de Node, la más importante.
+/node_modules
+
+# =================================================================
+# Archivos de Build y Producción (Vite)
+# =================================================================
+# Ignorar la carpeta de salida de la compilación.
+/dist
+/dist-ssr
+
+# =================================================================
+# Variables de Entorno y Configuraciones Locales
+# =================================================================
+# Ignorar todos los archivos de entorno. Contienen secretos y
+# configuraciones locales. Deben crearse manualmente en cada máquina.
+.env
+.env.*
+*.local
+
+# =================================================================
 # Logs
+# =================================================================
+# Ignorar archivos y carpetas de logs.
 logs
 *.log
 npm-debug.log*
@@ -7,18 +32,17 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
+# =================================================================
+# Archivos de Sistema y Editor de Código
+# =================================================================
+# Archivos de configuración de editores
+.vscode/
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
+
+# Archivos de sistema operativo
+.DS_Store
 *.sw?
