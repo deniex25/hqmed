@@ -21,14 +21,78 @@ function tokenPorExpirar() {
   }
 }
 
+// NUEVA FUNCIÓN A AGREGAR O MODIFICAR
+// Esta función verifica si el token no solo existe, sino que es válido (opcionalmente contra el backend)
+// La versión más robusta es la que llama al backend.
+export const isTokenValid = async (token) => {
+  if (!token) {
+    console.warn("isTokenValid: No hay token en sessionStorage.");
+    return false;
+  }
+
+  // Opcional: Primera capa de validación rápida (local JWT check)
+  // Esto es rápido pero no verifica si el token ha sido invalidado en el servidor
+  try {
+    const decoded = JSON.parse(atob(token.split(".")[1]));
+    const exp = decoded.exp * 1000; // Convertir a milisegundos
+    const now = Date.now();
+    if (exp < now) {
+      console.warn("isTokenValid: Token expirado localmente.");
+      return false; // El token ha expirado localmente
+    }
+  } catch (e) {
+    console.error("isTokenValid: Error al decodificar token localmente:", e);
+    return false; // Error al decodificar el token
+  }
+
+  // Segunda capa de validación (llamada al backend)
+  // Esto es más seguro, pero requiere un endpoint en el backend.
+  try {
+    const response = await fetch(`${backendUrl}/validar-token`, {
+      // <--- ¡DEBES TENER ESTE ENDPOINT!
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (response.ok) {
+      // El backend respondió OK, el token es válido
+      return true;
+    } else if (response.status === 401 || response.status === 403) {
+      // No autorizado o prohibido, el token no es válido o expiró en el servidor
+      console.warn(
+        `isTokenValid: Token no válido en el backend (status: ${response.status}).`
+      );
+      return false;
+    } else {
+      // Otro error del servidor, considerar el token como no válido por seguridad
+      console.error(
+        `isTokenValid: Error inesperado del backend (status: ${response.status}).`
+      );
+      return false;
+    }
+  } catch (error) {
+    console.error(
+      "isTokenValid: Error de red o al contactar el backend:",
+      error
+    );
+    return false; // Error de red, el token no se pudo validar
+  }
+};
+
 // Función que cierra sesión tras la advertencia de inactividad
 function cerrarSesionEn5Minutos() {
   if (!sessionStorage.getItem("token")) return; // Si el token ya fue eliminado, no hacer nada
 
   setTimeout(() => {
-    if (tokenPorExpirar()) {
+    // Aquí es mejor usar la función isTokenValid directamente si el token está por expirar
+    // y luego cerrar sesión si no es válido o está por expirar realmente
+    const token = sessionStorage.getItem("token");
+    if (!token || tokenPorExpirar()) {
+      // Comprueba si el token no existe o está por expirar
       logoutUsuario();
-      window.location.href = "/login";
+      //   window.location.href = "/login"; // logoutUsuario ya hace esto
     }
   }, 5 * 60 * 1000); // Esperar 5 minutos
 }
@@ -38,28 +102,41 @@ function verificarExpiracionToken() {
   if (verificarTokenInterval) clearInterval(verificarTokenInterval); // Evita duplicar intervalos
 
   verificarTokenInterval = setInterval(() => {
-    if (!sessionStorage.getItem("token")) {
-      clearInterval(verificarTokenInterval); // Si no hay token, detener el intervalo
+    const currentToken = sessionStorage.getItem("token");
+    if (!currentToken) {
+      // Si no hay token, detener el intervalo
+      clearInterval(verificarTokenInterval);
       return;
     }
 
+    // Aquí, además de tokenPorExpirar, podrías llamar a isTokenValid para una verificación más estricta
+    // Por ejemplo:
+    // isTokenValid(currentToken).then(valid => {
+    //   if (!valid) {
+    //     alert("Tu sesión ha expirado.");
+    //     logoutUsuario();
+    //   }
+    // });
+
     if (tokenPorExpirar()) {
       alert("Tu sesión está por expirar en 5 minutos por inactividad.");
+      // Iniciar el temporizador de cierre de sesión
       cerrarSesionEn5Minutos();
     }
   }, 60 * 1000); // Verifica cada minuto
 }
 
 // Llamar a la verificación al iniciar la app
-verificarExpiracionToken();
+// ¡Cuidado! Esta llamada aquí puede ejecutarse antes de que React se monte.
+// Es mejor iniciarla después de un login exitoso.
+// verificarExpiracionToken(); // <-- Descomenta esto de aquí. Ya se llama en loginUsuario.
 
 // Renueva el token
 async function renovarToken() {
   const token = sessionStorage.getItem("token");
 
   if (!token) {
-    logoutUsuario();
-    window.location.href = "/login";
+    logoutUsuario(); // Esto ya redirige
     throw new Error("Sesión expirada.");
   }
   try {
@@ -71,20 +148,8 @@ async function renovarToken() {
       },
     });
 
-    // if (response.ok) {
-    //   const data = await response.json();
-    //   sessionStorage.setItem("token", data.token);
-    //   return data.token;
-    // } else {
-    //   // Si la renovación falla, forzamos logout
-    //   logoutUsuario();
-    //   window.location.href = "/login";
-    //   throw new Error("No autorizado, sesión cerrada");
-    // }
     if (!response.ok) {
-      // Si la renovación falla, forzamos logout
-      logoutUsuario();
-      window.location.href = "/login";
+      logoutUsuario(); // Esto ya redirige
       throw new Error("No autorizado, sesión cerrada");
     }
 
@@ -92,9 +157,7 @@ async function renovarToken() {
     sessionStorage.setItem("token", data.token);
     return data.token;
   } catch (error) {
-    // Manejar errores de red u otros errores inesperados
-    logoutUsuario();
-    window.location.href = "/login";
+    logoutUsuario(); // Esto ya redirige
     throw new Error(error.message || "Error al renovar el token");
   }
 }
@@ -143,7 +206,7 @@ export async function fetchAPI(endpoint, options = {}) {
     }
 
     if (!response.ok) {
-      let errorMessage = ""; //`Error ${response.status}: `
+      let errorMessage = "";
       let errorData = {};
       try {
         errorData = await response.json();
@@ -155,6 +218,13 @@ export async function fetchAPI(endpoint, options = {}) {
       } catch {
         errorMessage += "No se pudo obtener más información";
       }
+      // Si la respuesta es 401 o 403, forzar logout (esto es importante para tokens inválidos no expirados)
+      if (response.status === 401 || response.status === 403) {
+        console.warn(
+          `fetchAPI: Token inválido o no autorizado (${response.status}). Forzando logout.`
+        );
+        logoutUsuario(); // Esto ya redirige
+      }
       throw { status: response.status, message: errorMessage, data: errorData };
     }
     // Devolver el código de estado junto con los datos
@@ -164,6 +234,23 @@ export async function fetchAPI(endpoint, options = {}) {
     };
   } catch (error) {
     console.error(`Error en ${endpoint}:`, error);
+    // Si el error fue lanzado por renovarToken(), no forzar otro logout
+    if (
+      error.message === "No se pudo renovar el token, por favor inicie sesión."
+    ) {
+      throw error;
+    }
+    // Si es un error de red o no autorizado por el backend para cualquier otra petición
+    if (
+      error.status === 401 ||
+      error.status === 403 ||
+      error.message.includes("Failed to fetch")
+    ) {
+      console.warn(
+        `fetchAPI: Error de red o no autorizado en ${endpoint}. Forzando logout.`
+      );
+      logoutUsuario(); // Forzar logout solo si es un error de autorización o red en una petición normal.
+    }
     throw error;
   }
 }
@@ -210,6 +297,8 @@ export const loginUsuario = async (username, password) => {
     return { success: true };
   } catch (error) {
     console.error("Error en login:", error);
+    // Asegurarse de que no haya un token si el login falla.
+    sessionStorage.clear();
     return { success: false, message: error.message || "Error desconocido" };
   }
 };
@@ -218,7 +307,7 @@ export const loginUsuario = async (username, password) => {
 export const logoutUsuario = () => {
   sessionStorage.clear();
   clearInterval(verificarTokenInterval); // Detener la verificación del token
-  window.location.href = "/login";
+  window.location.href = "/auth/login";
 };
 
 export const changePassword = async (data) => {
@@ -448,14 +537,31 @@ export const buscarPacienteProg = async (id_tipo_doc, nro_doc_pac) => {
   }
 };
 
-export const buscarDatosCIE = async (query) => {
+export const buscarCIE10 = async (query, modo = 'ambos') => {
   try {
-    const response = await fetchAPI(`/buscarDatosCie?query=${query}`);
-    // Devolver los datos obtenidos de fetchAPI
-    return response.data;
+    const encodedQuery = encodeURIComponent(query);
+    const endpoint = `/buscarDatosCie?query=${encodedQuery}&modo=${modo}`; // Asegúrate de que esta sea la URL de tu backend Flask para CIE
+
+    // Llama a tu función fetchAPI
+    const response = await fetchAPI(endpoint, { method: 'GET' });
+
+    // Tu fetchAPI ahora devuelve un objeto con .status y .data
+    // Debes acceder a .data para obtener los resultados.
+    if (response.status === 200 || response.status === 404) { // Maneja 200 (éxito) y 404 (no encontrado)
+      // Si status es 404, response.data ya será un array vacío por tu fetchAPI.
+      // Si status es 200, response.data contendrá los resultados del JSON.
+      return Array.isArray(response.data) ? response.data : [];
+    } else {
+      // Para otros códigos de estado que no sean 200 o 404,
+      // puedes loguear el error o simplemente devolver un array vacío.
+      console.error(`Error inesperado al buscar CIE. Estado: ${response.status}`, response.data);
+      return [];
+    }
   } catch (error) {
-    console.error("Error buscando datos CIE:", error);
-    return []; // Retorna un array vacío en caso de error
+    // Esto capturará errores lanzados por fetchAPI (ej. 401, 403, errores de red).
+    console.error("Error en buscarDatosCIE (API service):", error);
+    // Devolver un array vacío para que el Autocomplete no falle.
+    return [];
   }
 };
 
