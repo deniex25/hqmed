@@ -416,7 +416,14 @@ export const obtenerDatosSemana = async (
   fechaFin,
   idEstablecimiento
 ) => {
-  let url = `/reporteCalendarioCirugias?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}&id_tipo_servicio=${servicio}&id_establecimiento=${idEstablecimiento}`;
+  let url = `/reporteCalendarioCirugias?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`;
+
+  if (servicio !== "todos") {
+    url += `&id_tipo_servicio=${servicio}`;
+  }
+  if (idEstablecimiento !== "todos") {
+    url += `&id_establecimiento=${idEstablecimiento}`;
+  }
 
   try {
     const response = await fetchAPI(url, {
@@ -537,24 +544,28 @@ export const buscarPacienteProg = async (id_tipo_doc, nro_doc_pac) => {
   }
 };
 
-export const buscarCIE10 = async (query, modo = 'ambos') => {
+export const buscarCIE10 = async (query, modo = "ambos") => {
   try {
     const encodedQuery = encodeURIComponent(query);
     const endpoint = `/buscarDatosCie?query=${encodedQuery}&modo=${modo}`; // Asegúrate de que esta sea la URL de tu backend Flask para CIE
 
     // Llama a tu función fetchAPI
-    const response = await fetchAPI(endpoint, { method: 'GET' });
+    const response = await fetchAPI(endpoint, { method: "GET" });
 
     // Tu fetchAPI ahora devuelve un objeto con .status y .data
     // Debes acceder a .data para obtener los resultados.
-    if (response.status === 200 || response.status === 404) { // Maneja 200 (éxito) y 404 (no encontrado)
+    if (response.status === 200 || response.status === 404) {
+      // Maneja 200 (éxito) y 404 (no encontrado)
       // Si status es 404, response.data ya será un array vacío por tu fetchAPI.
       // Si status es 200, response.data contendrá los resultados del JSON.
       return Array.isArray(response.data) ? response.data : [];
     } else {
       // Para otros códigos de estado que no sean 200 o 404,
       // puedes loguear el error o simplemente devolver un array vacío.
-      console.error(`Error inesperado al buscar CIE. Estado: ${response.status}`, response.data);
+      console.error(
+        `Error inesperado al buscar CIE. Estado: ${response.status}`,
+        response.data
+      );
       return [];
     }
   } catch (error) {

@@ -159,12 +159,8 @@ export const AltaDialog = ({
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
-        <DialogTitle>
-          {isReadOnly
-            ? "Detalles de Alta/Anulación"
-            : isDarAltaMode
-            ? "Dar Alta Hospitalización"
-            : "Editar Detalles de Alta"}
+        <DialogTitle sx={{ fontWeight: "bold" }}>
+          Alta Hospitalización
         </DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={2}>
@@ -249,6 +245,7 @@ export const AltaDialog = ({
                 open={cieProps.mostrarOpciones}
                 loading={cieProps.loading}
                 disabled={isReadOnly}
+                size="small"
                 renderInput={(params) => (
                   <TextField
                     {...params}

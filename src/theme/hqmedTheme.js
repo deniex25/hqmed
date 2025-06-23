@@ -9,6 +9,7 @@ export const HqmedTheme = createTheme({
     primary: { main: "#003277" },
     secondary: { main: "#175888" },
     error: { main: red.A400 },
+    blanco: { main: "#FFFFFF" },
   },
 
   typography: {
@@ -50,14 +51,14 @@ export const HqmedTheme = createTheme({
           // Puedes ajustar estos valores para que coincidan con la altura que deseas para los inputs 'normal'
           //minHeight: '48px', // Ejemplo: si quieres que todos los inputs "normal" tengan 48px de alto
           "& .MuiInputBase-input": {
-            padding: "10px 14px", // Ya lo tienes en MuiTextField. Asegúrate de que coincida.
+            //padding: "10px 14px", // Ya lo tienes en MuiTextField. Asegúrate de que coincida.
           },
         },
         sizeSmall: {
           // Estilos para el tamaño 'small'
           //minHeight: '40px', // <-- ¡Define una altura uniforme para todos los inputs small!
           "& .MuiInputBase-input": {
-            padding: "8px 12px", // Ya lo tienes en MuiTextField. Asegúrate de que coincida.
+            //padding: "8px 12px", // Ya lo tienes en MuiTextField. Asegúrate de que coincida.
           },
         },
       },
@@ -74,10 +75,10 @@ export const HqmedTheme = createTheme({
             height: "auto",
           },
           "& .MuiInputLabel-root": {
-            transform: "translate(14px, 12px) scale(1)",
+            //transform: "translate(14px, 12px) scale(1)",
           },
           "& .MuiInputLabel-shrink": {
-            transform: "translate(14px, -9px) scale(0.75)",
+            //transform: "translate(14px, -9px) scale(0.75)",
           },
         },
         sizeSmall: {
@@ -85,10 +86,10 @@ export const HqmedTheme = createTheme({
             // padding: "8px 12px", // Esto se movería a MuiInputBase.sizeSmall
           },
           "& .MuiInputLabel-root": {
-            transform: "translate(12px, 10px) scale(1)",
+            //transform: "translate(12px, 10px) scale(1)",
           },
           "& .MuiInputLabel-shrink": {
-            transform: "translate(12px, -7px) scale(0.75)",
+            //transform: "translate(12px, -7px) scale(0.75)",
           },
         },
       },
@@ -153,11 +154,11 @@ export const HqmedTheme = createTheme({
           fontSize: "0.80rem",
           fontWeight: "bold",
           backgroundColor: "#f5f5f5",
-          padding: '6px 12px',
+          padding: "6px 12px",
         },
         body: {
           fontSize: "0.70rem",
-          padding: '6px 12px',
+          padding: "6px 12px",
         },
       },
     },

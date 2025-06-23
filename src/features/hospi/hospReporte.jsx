@@ -1,10 +1,8 @@
 // src/features/hospi/hospReporte.jsx
 
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
-
-// Material-UI Components
 import {
   Box,
   Button,
@@ -349,11 +347,9 @@ export const ReporteHospi = () => {
     }
 
     if (hospitalizationData.estado_hosp === "hospitalizado") {
-      // Asegúrate de almacenar el ID de la hospitalización que se va a anular
-      // Puedes usar setSelectedHospitalizationData para esto, o un estado separado si lo prefieres
       setSelectedHospitalizationData({
         id: hospitalizationData.id_hospitalizacion,
-      }); // Almacena solo el ID para anular
+      });
       setAnularDialog({
         open: true,
         motivoAnulacion: "",
@@ -386,37 +382,27 @@ export const ReporteHospi = () => {
       );
       return;
     }
-
-    showDialog({
-      open: true,
-      title: "¿Confirmar Anulación?",
-      message: "¿Está seguro de que desea anular esta hospitalización?",
-      onConfirm: async () => {
-        hideDialog();
-        try {
-          await actualizarEstadoHospitalizacion(
-            idToAnnull,
-            "anulado",
-            null, // tipoAlta
-            null, // fechaAlta
-            null, // horaAlta
-            null, // codigoCIEAlta
-            anularDialog.motivoAnulacion // motivoAnulacion
-          );
-          showSnackbar("Hospitalización anulada correctamente.", "success");
-          await consultarDatos();
-          handleCloseAnularDialog();
-        } catch (error) {
-          console.error("Error al anular la hospitalización:", error);
-          showSnackbar(
-            "Error al anular la hospitalización: " +
-              (error.message || "Error desconocido."),
-            "error"
-          );
-        }
-      },
-      onCancel: hideDialog,
-    });
+    try {
+      await actualizarEstadoHospitalizacion(
+        idToAnnull,
+        "anulado",
+        null, // tipoAlta
+        null, // fechaAlta
+        null, // horaAlta
+        null, // codigoCIEAlta
+        anularDialog.motivoAnulacion // motivoAnulacion
+      );
+      showSnackbar("Hospitalización anulada correctamente.", "success");
+      await consultarDatos(); // Asumiendo que esta función refresca tu lista de hospitalizaciones
+      handleCloseAnularDialog(); // Cierra el diálogo de anulación después de una anulación exitosa
+    } catch (error) {
+      console.error("Error al anular la hospitalización:", error);
+      showSnackbar(
+        "Error al anular la hospitalización: " +
+          (error.message || "Error desconocido."),
+        "error"
+      );
+    }
   };
 
   return (
@@ -436,27 +422,29 @@ export const ReporteHospi = () => {
           <Grid size={{ xs: 12 }}>
             <FormSection title="Filtros de Reporte">
               <Grid container spacing={2}>
-                <Grid size={{ xs: 12, sm: 12, md: 12 }}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel id="establecimiento-label">
-                      Establecimiento
-                    </InputLabel>
-                    <Select
-                      labelId="establecimiento-label"
-                      value={idEstablecimientoFiltro}
-                      label="Establecimiento"
-                      onChange={handleIdEstablecimientoChange}
-                      disabled={!esAdmin}
-                    >
-                      <MenuItem value="todos">Todos</MenuItem>
-                      {establecimientos.map((estab) => (
-                        <MenuItem key={estab.id} value={estab.id}>
-                          {estab.descripcion}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
+                {esAdmin && (
+                  <Grid size={{ xs: 12, sm: 12, md: 12 }}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel id="establecimiento-label">
+                        Establecimiento
+                      </InputLabel>
+                      <Select
+                        labelId="establecimiento-label"
+                        value={idEstablecimientoFiltro}
+                        label="Establecimiento"
+                        onChange={handleIdEstablecimientoChange}
+                        disabled={!esAdmin}
+                      >
+                        <MenuItem value="todos">Todos</MenuItem>
+                        {establecimientos.map((estab) => (
+                          <MenuItem key={estab.id} value={estab.id}>
+                            {estab.descripcion}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <FormControl fullWidth size="small" disabled={loading}>
                     <InputLabel id="estado-hosp-label">Estado</InputLabel>
@@ -484,9 +472,7 @@ export const ReporteHospi = () => {
                     >
                       <MenuItem value="todos">Todos</MenuItem>
                       <MenuItem value="1">Medicina</MenuItem>
-                      <MenuItem value="2">
-                        Cirugia
-                      </MenuItem>
+                      <MenuItem value="2">Cirugia</MenuItem>
                       <MenuItem value="3">Ginecologia</MenuItem>
                       <MenuItem value="4">Obstetricia-Partos</MenuItem>
                       <MenuItem value="5">ARNP</MenuItem>
@@ -540,6 +526,7 @@ export const ReporteHospi = () => {
                 <>
                   <TableContainer
                     component={Paper}
+                    elevation={3}
                     sx={{
                       width: "100%", // Asegura que ocupe todo el ancho disponible
                       overflowX: "auto", // ¡Esto es lo que añade el scroll horizontal!
@@ -571,8 +558,8 @@ export const ReporteHospi = () => {
                             key={row.id_hospitalizacion}
                             sx={{
                               "&:hover": {
-                                cursor: "pointer",
-                                backgroundColor: "#f5f5f5",
+                                backgroundColor: (theme) =>
+                                  theme.palette.action.hover,
                               },
                             }}
                           >
@@ -605,19 +592,23 @@ export const ReporteHospi = () => {
                                 <Box sx={{ display: "flex", gap: 0.5 }}>
                                   <IconButton
                                     color="primary"
+                                    size="small"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleOpenAltaDialog(row); // Abre el nuevo AltaDialog
                                     }}
+                                    title="Dar Alta"
                                   >
                                     <EditIcon />
                                   </IconButton>
                                   <IconButton
                                     color="error"
+                                    size="small"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleOpenAnularDialog(row);
                                     }}
+                                    title="Anular Registro"
                                   >
                                     <CancelIcon />
                                   </IconButton>
@@ -704,6 +695,7 @@ export const ReporteHospi = () => {
             value={anularDialog.motivoAnulacion}
             onChange={handleAnularDialogChange}
             placeholder="Ingrese el motivo de anulación"
+            sx={{ mt: 2 }}
             required
             error={!anularDialog.motivoAnulacion.trim() && anularDialog.open} // Solo muestra error cuando está abierto y vacío
             helperText={

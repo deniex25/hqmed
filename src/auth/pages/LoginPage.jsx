@@ -1,17 +1,16 @@
-import { Button, Grid, TextField } from '@mui/material';
-import { AuthLayout } from '../layout/AuthLayout';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Button, Grid, TextField } from "@mui/material";
+import { AuthLayout } from "../layout/AuthLayout";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { loginUsuario } from "../../services/api";
 
 export const LoginPage = () => {
+  const navigate = useNavigate();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
-    const navigate = useNavigate();
-    const [username, setUsername] = useState("");
-    const [password, setPassword] = useState("");
-    const [error, setError] = useState("");
-
-    const handleSubmit = async (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
 
@@ -33,42 +32,41 @@ export const LoginPage = () => {
     }
   };
 
-    return (
-        <AuthLayout title='Login'>
-            <form onSubmit={handleSubmit}>
-                    <Grid container>
-                        <Grid size={{ xs: 12 }} sx={{ mt: 2 }}>
-                            <TextField 
-                            label='Usuario'                            
-                            type='text'
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            placeholder='12345678'
-                            fullWidth
-                            />
-                        </Grid>
-                        <Grid size={{ xs: 12 }} sx={{ mt: 2 }}>
-                            <TextField 
-                            label='Contraseña'
-                            type='password'
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder='Contraseña'
-                            fullWidth
-                            />
-                        </Grid>
-                        <Grid container spacing={ 2 } size={{ xs: 12 }} sx={{ mb: 2, mt: 1}}>
-                            <Grid size={{ xs: 12 }}>
-                                <Button 
-                                variant='contained' 
-                                type='submit'
-                                fullWidth>
-                                    Login
-                                </Button>
-                            </Grid>
-                        </Grid>
-                    </Grid>
-                </form>
-        </AuthLayout>
-    )
-}
+  return (
+    <AuthLayout title="Login">
+      <form onSubmit={handleSubmit}>
+        <Grid container>
+          <Grid size={{ xs: 12 }} sx={{ mt: 2 }}>
+            <TextField
+              label="Usuario"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="12345678"
+              fullWidth
+              required
+            />
+          </Grid>
+          <Grid size={{ xs: 12 }} sx={{ mt: 2 }}>
+            <TextField
+              label="Contraseña"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Contraseña"
+              fullWidth
+              required
+            />
+          </Grid>
+          <Grid container spacing={2} size={{ xs: 12 }} sx={{ mb: 2, mt: 1 }}>
+            <Grid size={{ xs: 12 }}>
+              <Button variant="contained" type="submit" fullWidth>
+                Login
+              </Button>
+            </Grid>
+          </Grid>
+        </Grid>
+      </form>
+    </AuthLayout>
+  );
+};

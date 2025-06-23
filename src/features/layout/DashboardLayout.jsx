@@ -17,7 +17,8 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 
 import DashboardIcon from "@mui/icons-material/Dashboard";
-import VaccinesTwoToneIcon from '@mui/icons-material/VaccinesTwoTone';
+import LogoutTwoToneIcon from "@mui/icons-material/LogoutTwoTone";
+import VaccinesTwoToneIcon from "@mui/icons-material/VaccinesTwoTone";
 import TableViewTwoToneIcon from "@mui/icons-material/TableViewTwoTone";
 import HotelTwoToneIcon from "@mui/icons-material/HotelTwoTone";
 import BedroomParentTwoToneIcon from "@mui/icons-material/BedroomParentTwoTone";
@@ -25,12 +26,17 @@ import CalendarMonthTwoToneIcon from "@mui/icons-material/CalendarMonthTwoTone";
 import AppRegistrationTwoToneIcon from "@mui/icons-material/AppRegistrationTwoTone";
 import SummarizeTwoToneIcon from "@mui/icons-material/SummarizeTwoTone";
 import CalendarViewMonthTwoToneIcon from "@mui/icons-material/CalendarViewMonthTwoTone";
-import PersonAddTwoToneIcon from '@mui/icons-material/PersonAddTwoTone';
-import BadgeTwoToneIcon from '@mui/icons-material/BadgeTwoTone';
-import ManageAccountsTwoToneIcon from '@mui/icons-material/ManageAccountsTwoTone';
-import SyncLockTwoToneIcon from '@mui/icons-material/SyncLockTwoTone';
+import PersonAddTwoToneIcon from "@mui/icons-material/PersonAddTwoTone";
+import BadgeTwoToneIcon from "@mui/icons-material/BadgeTwoTone";
+import ManageAccountsTwoToneIcon from "@mui/icons-material/ManageAccountsTwoTone";
+import SyncLockTwoToneIcon from "@mui/icons-material/SyncLockTwoTone";
 
-import { Outlet, Link as RouterLink, useLocation } from "react-router-dom";
+import {
+  useNavigate,
+  Outlet,
+  Link as RouterLink,
+  useLocation,
+} from "react-router-dom";
 
 const drawerWidthOpen = 240;
 const drawerWidthClosed = 0;
@@ -87,6 +93,7 @@ export const DashboardLayout = () => {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up("sm"));
 
+  const navigate = useNavigate();
   const [open, setOpen] = React.useState(false);
   const toggleDrawer = () => {
     setOpen(!open);
@@ -136,6 +143,11 @@ export const DashboardLayout = () => {
       <ListItemText primary={text} />
     </ListItemButton>
   );
+  const handleLogout = () => {
+    sessionStorage.clear();
+    navigate("/login", { replace: true });
+    return;
+  };
 
   return (
     <Box sx={{ display: "flex" }}>
@@ -162,6 +174,13 @@ export const DashboardLayout = () => {
           >
             HQMED - Red de Salud Trujillo
           </Typography>
+          <IconButton
+            color="blanco"
+            title="Cerrar Sesion"
+            onClick={handleLogout}
+          >
+            <LogoutTwoToneIcon />
+          </IconButton>
         </Toolbar>
       </AppBar>
 
@@ -222,8 +241,16 @@ export const DashboardLayout = () => {
             <BedroomParentTwoToneIcon />,
             "Datos Camas"
           )}
-          {createNavLink("/confpaciente", <PersonAddTwoToneIcon />, "Datos Paciente")}
-          {createNavLink("/confpersonal", <BadgeTwoToneIcon />, "Datos Personal")}
+          {createNavLink(
+            "/confpaciente",
+            <PersonAddTwoToneIcon />,
+            "Datos Paciente"
+          )}
+          {createNavLink(
+            "/confpersonal",
+            <BadgeTwoToneIcon />,
+            "Datos Personal"
+          )}
           {createNavLink(
             "/registrousuario",
             <ManageAccountsTwoToneIcon />,

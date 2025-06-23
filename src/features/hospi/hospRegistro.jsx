@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Grid,
   TextField,
@@ -45,6 +45,10 @@ import { FormSection } from "../layout/FormSection";
 // Componente para el campo de Establecimiento (solo para administradores)
 // Este componente DEBE ser definido fuera de RegistrarHospi
 // O idealmente en su propio archivo, por ejemplo: src/components/AdminEstablishmentSelect.jsx
+const obtenerFecha = () => {
+  const fecha = dayjs();
+  return fecha.format("YYYY-MM-DD"); // Formato YYYY-MM-DD
+};
 
 export const RegistroHospi = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -68,11 +72,6 @@ export const RegistroHospi = () => {
   const [tipoServicio, setTipoServicio] = useState([]);
   const [camasDisponibles, setCamasDisponibles] = useState([]);
   const navigate = useNavigate();
-
-  const obtenerFecha = () => {
-    const fecha = dayjs();
-    return fecha.format("YYYY-MM-DD"); // Formato YYYY-MM-DD
-  };
 
   const [datosPHosp, setDatos] = useState({
     id_tipo_doc: "",
@@ -630,7 +629,7 @@ export const RegistroHospi = () => {
 
         <FormSection title="Detalles del Ingreso Hospitalario">
           <Grid container spacing={3}>
-            <Grid size={{ xs: 12, sm: 4 }}>
+            <Grid size={{ xs: 12, sm: 3 }}>
               <FormControl
                 fullWidth
                 size="small"
@@ -660,14 +659,21 @@ export const RegistroHospi = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
+            <Grid size={{ xs: 12, sm: 3 }}>
               <DatePicker
                 label="Fecha de Ingreso *"
                 name="fecha_ingreso"
-                value={dayjs(datosPHosp.fecha_ingreso)}
-                onChange={(newValue) =>
-                  setDatos({ ...datosPHosp, fecha_ingreso: newValue })
+                value={
+                  datosPHosp.fecha_ingreso
+                    ? dayjs(datosPHosp.fecha_ingreso)
+                    : null
                 }
+                onChange={(newValue) => {
+                  const formattedDate = newValue
+                    ? newValue.format("YYYY-MM-DD")
+                    : null;
+                  setDatos({ ...datosPHosp, fecha_ingreso: formattedDate });
+                }}
                 format="DD/MM/YYYY"
                 slotProps={{
                   textField: {
@@ -679,8 +685,13 @@ export const RegistroHospi = () => {
                 disabled={formLoading}
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <FormControl fullWidth required disabled={formLoading}>
+            <Grid size={{ xs: 12, sm: 3 }}>
+              <FormControl
+                fullWidth
+                size="small"
+                required
+                disabled={formLoading}
+              >
                 <InputLabel id="cama-label">Cama Asignada</InputLabel>
                 <Select
                   labelId="cama-label"
@@ -693,7 +704,7 @@ export const RegistroHospi = () => {
                   required
                 >
                   <MenuItem value="">
-                    <em>Seleccione una cama disponible</em>
+                    <em>Seleccione</em>
                   </MenuItem>
                   {Array.isArray(camasDisponibles) &&
                     camasDisponibles.map((cama) => (
@@ -704,7 +715,7 @@ export const RegistroHospi = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
+            <Grid size={{ xs: 12, sm: 3 }}>
               <TimePicker
                 label="Hora de Ingreso *"
                 name="hora_ingreso"
@@ -720,7 +731,7 @@ export const RegistroHospi = () => {
                   textField: {
                     fullWidth: true,
                     size: "small",
-                    helperText: 'Formato de 24 horas',
+                    helperText: "Formato de 24 horas",
                   },
                 }}
                 required
@@ -761,6 +772,7 @@ export const RegistroHospi = () => {
                 open={cie1Props.mostrarOpciones}
                 loading={cie1Props.loading}
                 disabled={formLoading}
+                size="small"
                 renderInput={(params) => (
                   <TextField
                     {...params}
@@ -792,6 +804,7 @@ export const RegistroHospi = () => {
                     checked={isVisible}
                     onChange={handleToggleCIE}
                     disabled={formLoading}
+                    size="small"
                   />
                 }
                 label={
@@ -836,6 +849,7 @@ export const RegistroHospi = () => {
                     open={cie2Props.mostrarOpciones}
                     loading={cie2Props.loading}
                     disabled={formLoading}
+                    size="small"
                     renderInput={(params) => (
                       <TextField
                         {...params}
@@ -887,6 +901,7 @@ export const RegistroHospi = () => {
                     open={cie3Props.mostrarOpciones}
                     loading={cie3Props.loading}
                     disabled={formLoading}
+                    size="small"
                     renderInput={(params) => (
                       <TextField
                         {...params}
@@ -924,6 +939,7 @@ export const RegistroHospi = () => {
             multiline
             rows={4}
             placeholder="Ingrese cualquier información adicional relevante..."
+            size="small"
             disabled={formLoading}
           />
         </FormSection>
