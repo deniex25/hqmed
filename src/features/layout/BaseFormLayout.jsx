@@ -20,7 +20,7 @@ export const BaseFormLayout = ({
     <Box
       sx={{
         p: { xs: 2, sm: 3, md: 4 }, // Padding responsivo
-        maxWidth: 1000, // Ancho máximo para formularios grandes
+        maxWidth: 1200, // Ancho máximo para formularios grandes
         margin: 'auto', // Centra el formulario
         display: 'flex',
         flexDirection: 'column',

@@ -51,7 +51,7 @@ export const CirugiaCalendario = () => {
   const [datosCalendario, setDatosCalendario] = useState({}); // Datos de la API
   const [offsetSemana, setOffsetSemana] = useState(0);
   const [establecimientos, setEstablecimientos] = useState([]);
-  const [servicioFiltro, setServicioFiltro] = useState("todos"); // Nuevo estado para tipos de servicio
+  const [servicioFiltro, setServicioFiltro] = useState("todos");
   const [idEstablecimientoSeleccionado, setIdEstablecimientoSeleccionado] =
     useState("todos"); // Cambiado a "todos" como valor por defecto, y renombrado
 
@@ -111,7 +111,7 @@ export const CirugiaCalendario = () => {
         fechaFin,
         idEstablecimientoSeleccionado
       );
-
+      console.log(data);
       // La API debe devolver un objeto donde las claves sean las fechas y los valores sean objetos con turnos
       // Ejemplo: { '2023-10-26': { '1': [...], '2': [...] }, '2023-10-27': { ... } }
       if (typeof data === "object" && data !== null) {

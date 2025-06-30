@@ -22,6 +22,7 @@ import VaccinesTwoToneIcon from "@mui/icons-material/VaccinesTwoTone";
 import TableViewTwoToneIcon from "@mui/icons-material/TableViewTwoTone";
 import HotelTwoToneIcon from "@mui/icons-material/HotelTwoTone";
 import BedroomParentTwoToneIcon from "@mui/icons-material/BedroomParentTwoTone";
+import Person3TwoToneIcon from '@mui/icons-material/Person3TwoTone';
 import CalendarMonthTwoToneIcon from "@mui/icons-material/CalendarMonthTwoTone";
 import AppRegistrationTwoToneIcon from "@mui/icons-material/AppRegistrationTwoTone";
 import SummarizeTwoToneIcon from "@mui/icons-material/SummarizeTwoTone";
@@ -211,7 +212,18 @@ export const DashboardLayout = () => {
             <TableViewTwoToneIcon />,
             "Reporte Hospitalizacion"
           )}
-          {createNavLink("/censoscamas", <HotelTwoToneIcon />, "Censos Camas")}
+          {createNavLink("/censoscamas", <Person3TwoToneIcon />, "Censos Camas")}
+          <Divider sx={{ my: 1 }} />
+          {createNavLink(
+            "/registroobserv",
+            <VaccinesTwoToneIcon />,
+            "Registro Observacion"
+          )}
+          {createNavLink(
+            "/reporteobserv",
+            <TableViewTwoToneIcon />,
+            "Reporte Observacion"
+          )}
           <Divider sx={{ my: 1 }} />
           {createNavLink(
             "/calendario",
@@ -277,7 +289,7 @@ export const DashboardLayout = () => {
         }}
       >
         <Toolbar />
-        <Container maxWidth="false" sx={{ mt: 4, mb: 4 }}>
+        <Container maxWidth={false} sx={{ mt: 4, mb: 4 }}>
           <Outlet />
         </Container>
       </Box>

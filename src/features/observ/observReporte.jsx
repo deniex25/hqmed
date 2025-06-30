@@ -1,5 +1,3 @@
-// src/features/hospi/hospReporte.jsx
-
 import { useState, useEffect, useCallback } from "react";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
@@ -39,14 +37,14 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 
 // Custom Components & Hooks
-import { BaseFormLayout } from "../../features/layout/BaseFormLayout";
-import { FormSection } from "../../features/layout/FormSection";
+import { BaseFormLayout } from "../layout/BaseFormLayout";
+import { FormSection } from "../layout/FormSection";
 import { useAlerts } from "../../hooks/useAlerts";
 import { CustomDialog } from "../../components/CustomDialog"; // Asegúrate de que esta ruta sea correcta para tu CustomDialog genérico
 
 import {
-  obtenerReporteHospi,
-  actualizarEstadoHospitalizacion,
+  obtenerReporteObserv,
+  actualizarEstadoObserv,
   listarEstablecimientos,
 } from "../../services/api";
 
@@ -56,14 +54,14 @@ const obtenerFecha = (dias) => {
   return fecha.format("YYYY-MM-DD"); // Formato YYYY-MM-DD
 };
 
-export const ReporteHospi = () => {
-  const { snackbar, showSnackbar, dialog, showDialog, hideDialog } =
+export const ReporteObserv = () => {
+  const { snackbar, showSnackbar, dialog } =
     useAlerts();
 
   const [datos, setDatos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [estadoHospFiltro, setEstadoHospFiltro] = useState("todos");
+  const [estadoObservFiltro, setEstadoObservFiltro] = useState("todos");
   const [servicioFiltro, setServicioFiltro] = useState("todos");
   // Usar dayjs para los estados de fecha con DatePicker/TimePicker
   const [fechaInicio, setFechaInicio] = useState(dayjs(obtenerFecha(-7)));
@@ -76,8 +74,7 @@ export const ReporteHospi = () => {
 
   // Estados para el nuevo AltaDialog componente
   const [isAltaDialogOpen, setIsAltaDialogOpen] = useState(false);
-  const [selectedHospitalizationData, setSelectedHospitalizationData] =
-    useState(null);
+  const [selectedObservData, setSelectedObservData] = useState(null);
 
   // Estado para el diálogo de Anulación (se mantiene aquí, ya que es más simple)
   const [anularDialog, setAnularDialog] = useState({
@@ -110,14 +107,14 @@ export const ReporteHospi = () => {
         : "";
       const formattedFechaFin = fechaFin ? fechaFin.format("YYYY-MM-DD") : "";
 
-      const datosHosp = await obtenerReporteHospi(
-        estadoHospFiltro,
+      const datosObserv = await obtenerReporteObserv(
+        estadoObservFiltro,
         servicioFiltro,
         formattedFechaInicio,
         formattedFechaFin,
         idEstablecimientoFiltro
       );
-      setDatos(datosHosp);
+      setDatos(datosObserv);
     } catch (err) {
       console.error("Error al obtener los datos:", err);
       setError("Error al obtener los datos del reporte.");
@@ -126,7 +123,7 @@ export const ReporteHospi = () => {
       setLoading(false);
     }
   }, [
-    estadoHospFiltro,
+    estadoObservFiltro,
     servicioFiltro,
     fechaInicio,
     fechaFin,
@@ -156,43 +153,43 @@ export const ReporteHospi = () => {
       "Tipo Doc",
       "Nro Doc",
       "Paciente",
-      "Genero",
       "Estado",
       "Codigo CIE Alta",
       "Diagnostico CIE Alta",
       "Establecimiento",
     ];
 
-    const dataExport = datos.map((hospitalizaciones) => {
-      const horaIngresoSinMilisegundos = hospitalizaciones.hora_ingreso
-        ? hospitalizaciones.hora_ingreso.split(".")[0]
+    const dataExport = datos.map((observacion) => {
+      const horaIngresoSinMilisegundos = observacion.hora_ingreso
+        ? observacion.hora_ingreso.split(".")[0]
         : "";
-      const horaAltaSinMilisegundos = hospitalizaciones.hora_alta
-        ? hospitalizaciones.hora_alta.split(".")[0]
+      const horaAltaSinMilisegundos = observacion.hora_alta
+        ? observacion.hora_alta.split(".")[0]
         : "";
       return {
-        "Fecha Ingreso": hospitalizaciones.fecha_ingreso,
-        Servicio: hospitalizaciones.Descripcion_Servicio,
+        "Fecha Ingreso": observacion.fecha_ingreso,
+        Servicio: observacion.Descripcion_Servicio,
         "Hora Ingreso": horaIngresoSinMilisegundos,
-        "Fecha Alta": hospitalizaciones.fecha_alta,
+        "Fecha Alta": observacion.fecha_alta,
         "Hora Alta": horaAltaSinMilisegundos,
-        Cama: hospitalizaciones.nombre_cama,
-        "Tipo Doc": hospitalizaciones.Abrev_Tipo_Doc,
-        "Nro Doc": hospitalizaciones.nro_doc_pac,
-        Paciente: hospitalizaciones.Paciente,
-        Genero: hospitalizaciones.sexo_pac,
-        Estado: hospitalizaciones.estado_hosp,
-        "Codigo CIE Alta": hospitalizaciones.codigo_cie_alta,
-        "Diagnostico CIE Alta": hospitalizaciones.descripcion_cie_alta,
-        Establecimiento: hospitalizaciones.Establecimiento,
+        Cama: observacion.nombre_cama,
+        "Tipo Doc": observacion.Abrev_Tipo_Doc,
+        "Nro Doc": observacion.nro_doc_pac,
+        Paciente: observacion.Paciente,
+        Estado: observacion.estado_obs,
+        "Codigo CIE Alta": observacion.codigo_cie_alta,
+        "Diagnostico CIE Alta": observacion.descripcion_cie_alta,
+        Establecimiento: observacion.Establecimiento,
       };
     });
 
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet("Reporte Hospitalizaciones");
+    const worksheet = workbook.addWorksheet(
+      "Reporte de Pacientes en Observacion"
+    );
 
     // Usa .format() de dayjs para las fechas en el título
-    const titulo = `Reporte de Hospitalizaciones: ${fechaInicio.format(
+    const titulo = `Reporte de Pacientes en Observacion: ${fechaInicio.format(
       "YYYY-MM-DD"
     )} a ${fechaFin.format("YYYY-MM-DD")}`;
     worksheet.mergeCells("A1:M1");
@@ -233,7 +230,7 @@ export const ReporteHospi = () => {
 
     const buffer = await workbook.xlsx.writeBuffer();
     // Usa .format() de dayjs para las fechas en el nombre del archivo
-    const nombreArchivo = `Reporte_Hospitalizaciones_${fechaInicio.format(
+    const nombreArchivo = `Reporte_Observacion_${fechaInicio.format(
       "YYYY-MM-DD"
     )}_a_${fechaFin.format("YYYY-MM-DD")}.xlsx`;
     saveAs(
@@ -245,8 +242,8 @@ export const ReporteHospi = () => {
   };
 
   // Manejadores de cambios de filtro
-  const handleEstadoHospChange = (event) =>
-    setEstadoHospFiltro(event.target.value);
+  const handleEstadoObservChange = (event) =>
+    setEstadoObservFiltro(event.target.value);
   const handleServicioChange = (event) => setServicioFiltro(event.target.value);
   const handleIdEstablecimientoChange = (event) =>
     setIdEstablecimientoFiltro(event.target.value);
@@ -258,32 +255,35 @@ export const ReporteHospi = () => {
   // Lógica del Nuevo Diálogo de Alta (usando AltaDialog)
   // =========================================================
 
-  const handleOpenAltaDialog = (hospitalizationData) => {
+  const handleOpenAltaDialog = (observData) => {
     // <-- Recibe los datos directamente
-    if (!hospitalizationData) {
+    if (!observData) {
       // Esto no debería ocurrir si se llama desde el botón de la fila
-      showSnackbar("Error: Datos de hospitalización no disponibles.", "error");
+      showSnackbar(
+        "Error: Datos de registros de observacion no disponibles.",
+        "error"
+      );
       return;
     }
 
-    if (hospitalizationData.estado_hosp === "alta") {
+    if (observData.estado_obs === "egreso") {
       showSnackbar("El paciente ya ha sido dado de alta.", "warning");
       return;
     }
-    if (hospitalizationData.estado_hosp === "anulado") {
+    if (observData.estado_obs === "anulado") {
       showSnackbar("El registro está anulado.", "warning");
       return;
     }
 
-    if (hospitalizationData.estado_hosp === "hospitalizado") {
-      setSelectedHospitalizationData({
-        id: hospitalizationData.id_hospitalizacion, // ID esencial para la operación
-        // Si AltaDialog necesita pre-llenar campos de una hosp. existente, pásalos aquí:
-        tipoAlta: hospitalizationData.tipo_alta || "alta medica", // Asegúrate que estas props existan en tu objeto de datos si las vas a usar.
-        fechaAlta: hospitalizationData.fecha_alta, // Pasa como string, AltaDialog lo convierte a dayjs
-        horaAlta: hospitalizationData.hora_alta, // Pasa como string, AltaDialog lo convierte a dayjs
-        codigoCIEAlta: hospitalizationData.codigo_cie_alta,
-        descripcionCIEAlta: hospitalizationData.descripcion_cie_alta,
+    if (observData.estado_obs === "observacion") {
+      setSelectedObservData({
+        id: observData.id_observacion, // ID esencial para la operación
+        // Si AltaDialog necesita pre-llenar campos de una observ. existente, pásalos aquí:
+        tipoAlta: observData.tipo_egreso, // Asegúrate que estas props existan en tu objeto de datos si las vas a usar.
+        fechaAlta: observData.fecha_egreso, // Pasa como string, AltaDialog lo convierte a dayjs
+        horaAlta: observData.hora_egreso, // Pasa como string, AltaDialog lo convierte a dayjs
+        codigoCIEAlta: observData.codigo_cie_egreso,
+        descripcionCIEAlta: observData.descripcion_cie_egreso,
         // Cualquier otra data que AltaDialog necesite para editar
       });
       setIsAltaDialogOpen(true);
@@ -292,30 +292,32 @@ export const ReporteHospi = () => {
 
   const handleCloseAltaDialog = () => {
     setIsAltaDialogOpen(false);
-    setSelectedHospitalizationData(null); // Limpiar datos seleccionados
+    setSelectedObservData(null); // Limpiar datos seleccionados
   };
 
   const handleSaveAlta = async (altaData) => {
     // altaData contiene { tipoAlta, fechaAlta, horaAlta, codigoCIEAlta, descripcionCIEAlta }
     // que viene del AltaDialog
     try {
-      await actualizarEstadoHospitalizacion(
-        selectedHospitalizationData.id, // Usa el ID de la hospitalización que abrio el diálogo
-        "alta",
+      await actualizarEstadoObserv(
+        selectedObservData.id, // Usa el ID de la observacion que abrio el diálogo
+        "egreso",
         altaData.tipoAlta,
-        altaData.nroHC,
         altaData.fechaAlta, // Ya viene formateado como string "YYYY-MM-DD"
         altaData.horaAlta, // Ya viene formateado como string "HH:mm:ss"
         altaData.codigoCIEAlta,
         altaData.descripcionCIEAlta
       );
-      showSnackbar("Hospitalización dada de alta correctamente.", "success");
+      showSnackbar(
+        "Paciente en observacion egreso correcto.",
+        "success"
+      );
       await consultarDatos(); // Refrescar los datos de la tabla
       handleCloseAltaDialog(); // Cerrar el diálogo
     } catch (error) {
-      console.error("Error al dar de alta la hospitalización:", error);
+      console.error("Error al dar de alta a paciente en observacion:", error);
       showSnackbar(
-        "Error al dar de alta la hospitalización: " +
+        "Error al dar de alta en observacion: " +
           (error.message || "Error desconocido."),
         "error"
       );
@@ -327,31 +329,34 @@ export const ReporteHospi = () => {
   // Lógica del Diálogo de Anulación
   // =========================================================
 
-  const handleOpenAnularDialog = (hospitalizationData) => {
+  const handleOpenAnularDialog = (observData) => {
     // <-- Recibe los datos directamente
-    if (!hospitalizationData) {
+    if (!observData) {
       showSnackbar(
-        "Error: Datos de hospitalización no disponibles para anular.",
+        "Error: Datos de paciente en observacion no disponibles para anular.",
         "error"
       );
       return;
     }
 
-    if (hospitalizationData.estado_hosp === "alta") {
+    if (observData.estado_obs === "egreso") {
       showSnackbar(
-        "No se puede anular una hospitalización dada de alta.",
+        "No se puede anular un registro de observacion que ya ha sido dado de alta.",
         "warning"
       );
       return;
     }
-    if (hospitalizationData.estado_hosp === "anulado") {
-      showSnackbar("Esta hospitalización ya ha sido anulada.", "warning");
+    if (observData.estado_obs === "anulado") {
+      showSnackbar(
+        "Este registro de observacion ya ha sido anulado.",
+        "warning"
+      );
       return;
     }
 
-    if (hospitalizationData.estado_hosp === "hospitalizado") {
-      setSelectedHospitalizationData({
-        id: hospitalizationData.id_hospitalizacion,
+    if (observData.estado_obs === "observacion") {
+      setSelectedObservData({
+        id: observData.id_observacion,
       });
       setAnularDialog({
         open: true,
@@ -377,32 +382,31 @@ export const ReporteHospi = () => {
       return;
     }
 
-    const idToAnnull = selectedHospitalizationData?.id;
+    const idToAnnull = selectedObservData?.id;
     if (!idToAnnull) {
       showSnackbar(
-        "Error: No se ha seleccionado una hospitalización para anular.",
+        "Error: No se ha seleccionado un registro de Observacion para anular.",
         "error"
       );
       return;
     }
     try {
-      await actualizarEstadoHospitalizacion(
+      await actualizarEstadoObserv(
         idToAnnull,
         "anulado",
         null, // tipoAlta
-        null, // nroHC
         null, // fechaAlta
         null, // horaAlta
         null, // codigoCIEAlta
         anularDialog.motivoAnulacion // motivoAnulacion
       );
-      showSnackbar("Hospitalización anulada correctamente.", "success");
-      await consultarDatos(); // Asumiendo que esta función refresca tu lista de hospitalizaciones
+      showSnackbar("Registro de observacion anulado correctamente.", "success");
+      await consultarDatos(); // Asumiendo que esta función refresca tu lista de observaciones
       handleCloseAnularDialog(); // Cierra el diálogo de anulación después de una anulación exitosa
     } catch (error) {
-      console.error("Error al anular la hospitalización:", error);
+      console.error("Error al anular el registro de observacion:", error);
       showSnackbar(
-        "Error al anular la hospitalización: " +
+        "Error al anular la observacion: " +
           (error.message || "Error desconocido."),
         "error"
       );
@@ -410,13 +414,9 @@ export const ReporteHospi = () => {
   };
 
   return (
-    // LocalizationProvider debe envolver a todos los DatePicker/TimePicker
-    // Nota: El LocalizationProvider en AltaDialog también es válido, pero tenerlo aquí
-    // asegura que cualquier componente de fecha/hora en este archivo o sus descendientes
-    // (si no tienen su propio LocalizationProvider) funcionará correctamente.
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <BaseFormLayout
-        title="Reporte de Hospitalización"
+        title="Reporte de Pacientes en Observacion"
         snackbar={snackbar}
         dialog={dialog}
         loading={loading}
@@ -451,16 +451,16 @@ export const ReporteHospi = () => {
                 )}
                 <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <FormControl fullWidth size="small" disabled={loading}>
-                    <InputLabel id="estado-hosp-label">Estado</InputLabel>
+                    <InputLabel id="estado-observ-label">Estado</InputLabel>
                     <Select
-                      labelId="estado-hosp-label"
-                      value={estadoHospFiltro}
+                      labelId="estado-observ-label"
+                      value={estadoObservFiltro}
                       label="Estado"
-                      onChange={handleEstadoHospChange}
+                      onChange={handleEstadoObservChange}
                     >
                       <MenuItem value="todos">Todos</MenuItem>
-                      <MenuItem value="hospitalizado">Hospitalizado</MenuItem>
-                      <MenuItem value="alta">Alta</MenuItem>
+                      <MenuItem value="observacion">Observacion</MenuItem>
+                      <MenuItem value="egreso">Egreso</MenuItem>
                       <MenuItem value="anulado">Anulado</MenuItem>
                     </Select>
                   </FormControl>
@@ -513,7 +513,7 @@ export const ReporteHospi = () => {
 
           {/* Sección de Tabla de Resultados */}
           <Grid size={{ xs: 12 }}>
-            <FormSection title="Resultados de Hospitalizaciones">
+            <FormSection title="Resultados de Pacientes en Observacion">
               {loading ? (
                 <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
                   <CircularProgress />
@@ -549,9 +549,9 @@ export const ReporteHospi = () => {
                           <TableCell>Servicio</TableCell>
                           <TableCell>Establecimiento</TableCell>
                           <TableCell>Estado</TableCell>
-                          <TableCell>Fecha Alta</TableCell>
-                          <TableCell>Hora Alta</TableCell>
-                          <TableCell>CIE Alta</TableCell>
+                          <TableCell>Fecha Egreso</TableCell>
+                          <TableCell>Hora Egreso</TableCell>
+                          <TableCell>CIE Egreso</TableCell>
                           <TableCell>Motivo Anulación</TableCell>
                           <TableCell>Acciones</TableCell>
                         </TableRow>
@@ -559,7 +559,7 @@ export const ReporteHospi = () => {
                       <TableBody>
                         {datos.map((row) => (
                           <TableRow
-                            key={row.id_hospitalizacion}
+                            key={row.id_observacion}
                             sx={{
                               "&:hover": {
                                 backgroundColor: (theme) =>
@@ -578,21 +578,21 @@ export const ReporteHospi = () => {
                             <TableCell>{row.nombre_cama}</TableCell>
                             <TableCell>{row.Descripcion_Servicio}</TableCell>
                             <TableCell>{row.Establecimiento}</TableCell>
-                            <TableCell>{row.estado_hosp}</TableCell>
-                            <TableCell>{row.fecha_alta || "-"}</TableCell>
+                            <TableCell>{row.estado_obs}</TableCell>
+                            <TableCell>{row.fecha_egreso || "-"}</TableCell>
                             <TableCell>
-                              {row.hora_alta
-                                ? row.hora_alta.split(".")[0]
+                              {row.hora_egreso
+                                ? row.hora_egreso.split(".")[0]
                                 : "-"}
                             </TableCell>
                             <TableCell>
-                              {row.codigo_cie_alta
-                                ? `${row.codigo_cie_alta} - ${row.descripcion_cie_alta}`
+                              {row.codigo_cie_egreso
+                                ? `${row.codigo_cie_egreso} - ${row.descripcion_cie_egreso}`
                                 : "-"}
                             </TableCell>
                             <TableCell>{row.motivo_anulacion || "-"}</TableCell>
                             <TableCell>
-                              {row.estado_hosp === "hospitalizado" && (
+                              {row.estado_obs === "observacion" && (
                                 <Box sx={{ display: "flex", gap: 0.5 }}>
                                   <IconButton
                                     color="primary"
@@ -601,7 +601,7 @@ export const ReporteHospi = () => {
                                       e.stopPropagation();
                                       handleOpenAltaDialog(row); // Abre el nuevo AltaDialog
                                     }}
-                                    title="Dar Alta"
+                                    title="Egreso"
                                   >
                                     <EditIcon />
                                   </IconButton>
@@ -618,8 +618,8 @@ export const ReporteHospi = () => {
                                   </IconButton>
                                 </Box>
                               )}
-                              {(row.estado_hosp === "alta" ||
-                                row.estado_hosp === "anulado") && (
+                              {(row.estado_obs === "egreso" ||
+                                row.estado_obs === "anulado") && (
                                 <IconButton
                                   color="info"
                                   onClick={(e) => {
@@ -668,13 +668,13 @@ export const ReporteHospi = () => {
         {/* Renderiza el nuevo componente AltaDialog CONDICIONALMENTE */}
         {/* =================================================== */}
         {isAltaDialogOpen &&
-          selectedHospitalizationData && ( // <-- ¡CLAVE! Renderiza solo si ambos son true
+          selectedObservData && ( // <-- ¡CLAVE! Renderiza solo si ambos son true
             <AltaDialog
               open={isAltaDialogOpen}
               onClose={handleCloseAltaDialog}
               onSave={handleSaveAlta}
               showSnackbar={showSnackbar}
-              initialData={selectedHospitalizationData}
+              initialData={selectedObservData}
             />
           )}
 
@@ -683,7 +683,7 @@ export const ReporteHospi = () => {
         {/* =================================================== */}
         <CustomDialog
           open={anularDialog.open}
-          title="Anular Hospitalización"
+          title="Anular Observacion"
           onConfirm={handleConfirmAnular}
           onCancel={handleCloseAnularDialog}
           confirmText="Confirmar"

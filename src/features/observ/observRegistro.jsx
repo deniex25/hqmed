@@ -14,7 +14,7 @@ import {
   Typography,
 } from "@mui/material";
 import Autocomplete from "@mui/material/Autocomplete";
-// Componentes de @mui/x-date-pickers
+
 import {
   DatePicker,
   TimePicker,
@@ -24,8 +24,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs"; // Importar dayjs para manejar los estados de fecha/hora
 
 import { useNavigate } from "react-router-dom";
-// import { CustomSnackbar } from "../../components/CustomSnackbar";
-// import { CustomDialog } from "../../components/CustomDialog";
+
 import {
   // Mantener las APIs comunes para todos los usuarios
   buscarPacientePorDocumento,
@@ -33,24 +32,19 @@ import {
   listarTipoServicio,
   listarCamasPorServicio,
   listarEstablecimientos,
-  guardarPacienteHospi,
+  guardarPacienteObserv,
 } from "../../services/api";
 
-// Importa los componentes de layout y el hook de alertas
 import { BaseFormLayout } from "../layout/BaseFormLayout";
 import { useCIEAutocomplete } from "../../hooks/useCIEAutocomplete";
 import { FormSection } from "../layout/FormSection";
-// import { useAlerts } from "../../hooks/useAlerts";
 
-// Componente para el campo de Establecimiento (solo para administradores)
-// Este componente DEBE ser definido fuera de RegistrarHospi
-// O idealmente en su propio archivo, por ejemplo: src/components/AdminEstablishmentSelect.jsx
 const obtenerFecha = () => {
   const fecha = dayjs();
   return fecha.format("YYYY-MM-DD"); // Formato YYYY-MM-DD
 };
 
-export const RegistroHospi = () => {
+export const RegistroObserv = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("info");
@@ -73,7 +67,7 @@ export const RegistroHospi = () => {
   const [camasDisponibles, setCamasDisponibles] = useState([]);
   const navigate = useNavigate();
 
-  const [datosPHosp, setDatos] = useState({
+  const [datosPObserv, setDatosPObserv] = useState({
     id_tipo_doc: "",
     nro_doc_pac: "",
     nombres_paciente: "",
@@ -84,21 +78,11 @@ export const RegistroHospi = () => {
     id_cama: "",
     fecha_ingreso: obtenerFecha(),
     hora_ingreso: "",
-    codigo_cie_hosp1: "",
-    descripcion_cie_hosp1: "",
-    codigo_cie_hosp2: "",
-    descripcion_cie_hosp2: "",
-    codigo_cie_hosp3: "",
-    descripcion_cie_hosp3: "",
+    codigo_cie_observ: "",
+    descripcion_cie_observ: "",
     observacion: "",
     id_establecimiento: esAdmin ? "" : "1",
   });
-
-  const [isVisible, setIsVisible] = useState(false);
-
-  const handleToggleCIE = useCallback(() => {
-    setIsVisible((prev) => !prev);
-  }, []);
 
   const showSnackbar = useCallback((message, severity = "info") => {
     setSnackbarMessage(message);
@@ -128,29 +112,13 @@ export const RegistroHospi = () => {
   }, []);
 
   const updateFormData = useCallback((callback) => {
-    setDatos((prev) => callback(prev));
+    setDatosPObserv((prev) => callback(prev));
   }, []);
 
-  const cie1Props = useCIEAutocomplete(
-    "codigo_cie_hosp1",
-    "descripcion_cie_hosp1",
-    datosPHosp,
-    updateFormData,
-    "ambos"
-  );
-
-  const cie2Props = useCIEAutocomplete(
-    "codigo_cie_hosp2",
-    "descripcion_cie_hosp2",
-    datosPHosp,
-    updateFormData,
-    "ambos"
-  );
-
-  const cie3Props = useCIEAutocomplete(
-    "codigo_cie_hosp3",
-    "descripcion_cie_hosp3",
-    datosPHosp,
+  const cieProps = useCIEAutocomplete(
+    "codigo_cie_observ",
+    "descripcion_cie_observ",
+    datosPObserv,
     updateFormData,
     "ambos"
   );
@@ -181,14 +149,14 @@ export const RegistroHospi = () => {
       }
     };
     cargarDatosIniciales();
-  }, [esAdmin, showSnackbar, datosPHosp.id_establecimiento]);
+  }, [esAdmin, showSnackbar, datosPObserv.id_establecimiento]);
 
   const handleBuscarPaciente = async (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
       setFormLoading(true);
 
-      if (!datosPHosp.id_tipo_doc || !datosPHosp.nro_doc_pac) {
+      if (!datosPObserv.id_tipo_doc || !datosPObserv.nro_doc_pac) {
         showSnackbar(
           "Por favor, seleccione el tipo y número de documento antes de buscar.",
           "warning"
@@ -199,8 +167,8 @@ export const RegistroHospi = () => {
 
       try {
         const resultado = await buscarPacientePorDocumento(
-          datosPHosp.id_tipo_doc,
-          datosPHosp.nro_doc_pac
+          datosPObserv.id_tipo_doc,
+          datosPObserv.nro_doc_pac
         );
 
         if (resultado.mensaje) {
@@ -213,7 +181,7 @@ export const RegistroHospi = () => {
             },
             () => {
               closeDialog();
-              setDatos((prev) => ({
+              setDatosPObserv((prev) => ({
                 ...prev,
                 nombres_paciente: "",
                 fecha_nac_pac: "",
@@ -223,7 +191,7 @@ export const RegistroHospi = () => {
             }
           );
         } else {
-          setDatos((prevDatos) => ({
+          setDatosPObserv((prevDatos) => ({
             ...prevDatos,
             nombres_paciente: resultado.nombres_paciente || "",
             fecha_nac_pac: resultado.fecha_nac_pac || "",
@@ -243,26 +211,26 @@ export const RegistroHospi = () => {
 
   useEffect(() => {
     const fetchCamas = async () => {
-      if (datosPHosp.id_tipo_servicio && datosPHosp.fecha_ingreso) {
+      if (datosPObserv.id_tipo_servicio && datosPObserv.fecha_ingreso) {
         setFormLoading(true);
         try {
           const camas = await listarCamasPorServicio(
-            datosPHosp.id_tipo_servicio,
-            datosPHosp.fecha_ingreso
+            datosPObserv.id_tipo_servicio,
+            datosPObserv.fecha_ingreso
           );
           setCamasDisponibles(camas);
           if (camas.length > 0) {
             if (
-              !datosPHosp.id_cama ||
-              !camas.some((c) => c.id === datosPHosp.id_cama)
+              !datosPObserv.id_cama ||
+              !camas.some((c) => c.id === datosPObserv.id_cama)
             ) {
-              setDatos((prev) => ({
+              setDatosPObserv((prev) => ({
                 ...prev,
                 id_cama: camas[0].id,
               }));
             }
           } else {
-            setDatos((prev) => ({
+            setDatosPObserv((prev) => ({
               ...prev,
               id_cama: "",
             }));
@@ -279,7 +247,7 @@ export const RegistroHospi = () => {
         }
       } else {
         setCamasDisponibles([]);
-        setDatos((prev) => ({
+        setDatosPObserv((prev) => ({
           ...prev,
           id_cama: "",
         }));
@@ -287,15 +255,15 @@ export const RegistroHospi = () => {
     };
     fetchCamas();
   }, [
-    datosPHosp.id_tipo_servicio,
-    datosPHosp.fecha_ingreso,
-    datosPHosp.id_cama,
+    datosPObserv.id_tipo_servicio,
+    datosPObserv.fecha_ingreso,
+    datosPObserv.id_cama,
     showSnackbar,
   ]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setDatos((prevDatos) => ({
+    setDatosPObserv((prevDatos) => ({
       ...prevDatos,
       [name]: value,
     }));
@@ -303,14 +271,14 @@ export const RegistroHospi = () => {
 
   const handleGuardar = async () => {
     if (
-      !datosPHosp.nro_doc_pac ||
-      !datosPHosp.nombres_paciente ||
-      !datosPHosp.id_cama ||
-      !datosPHosp.fecha_ingreso ||
-      !datosPHosp.hora_ingreso ||
-      !datosPHosp.id_tipo_doc ||
-      !datosPHosp.id_tipo_servicio ||
-      !datosPHosp.id_establecimiento
+      !datosPObserv.nro_doc_pac ||
+      !datosPObserv.nombres_paciente ||
+      !datosPObserv.id_cama ||
+      !datosPObserv.fecha_ingreso ||
+      !datosPObserv.hora_ingreso ||
+      !datosPObserv.id_tipo_doc ||
+      !datosPObserv.id_tipo_servicio ||
+      !datosPObserv.id_establecimiento
     ) {
       showSnackbar(
         "Por favor, complete todos los campos obligatorios.",
@@ -319,97 +287,9 @@ export const RegistroHospi = () => {
       return;
     }
 
-    // ** 2. Preparar los datos para el envío (cadenas vacías a null para campos específicos) **
-    const datosParaEnviar = { ...datosPHosp }; // Crea una copia
-
-    // === Lógica específica para Observación ===
-    if (datosParaEnviar.observacion === "") {
-      datosParaEnviar.observacion = null;
-    }
-
-    // === Lógica específica para CIE-10 (cada grupo) ===
-
-    // CIE 1 (Este sí podría ser obligatorio o al menos muy importante)
-    // Se mantiene la validación estricta para CIE 1, asumiendo que debe ser consistente si se usa.
-    if (
-      datosParaEnviar.codigo_cie_hosp1 === "" &&
-      datosParaEnviar.descripcion_cie_hosp1 === ""
-    ) {
-      datosParaEnviar.codigo_cie_hosp1 = null;
-      datosParaEnviar.descripcion_cie_hosp1 = null;
-    } else if (
-      datosParaEnviar.codigo_cie_hosp1 === "" ||
-      datosParaEnviar.descripcion_cie_hosp1 === ""
-    ) {
-      // Si uno de los dos está vacío, pero el otro no, se asume inconsistencia
-      showSnackbar(
-        "El código y la descripción del CIE-10 Principal deben estar completos o vacíos.",
-        "warning"
-      );
-      return; // Detiene el guardado si hay inconsistencia
-    }
-
-    // CIE 2 (AHORA OPCIONAL: Ambos vacíos = null, inconsistente = advertencia)
-    if (
-      datosParaEnviar.codigo_cie_hosp2 === "" &&
-      datosParaEnviar.descripcion_cie_hosp2 === ""
-    ) {
-      datosParaEnviar.codigo_cie_hosp2 = null;
-      datosParaEnviar.descripcion_cie_hosp2 = null;
-    } else if (
-      datosParaEnviar.codigo_cie_hosp2 !== "" &&
-      datosParaEnviar.descripcion_cie_hosp2 === ""
-    ) {
-      // Si hay código pero no descripción para CIE 2, es inconsistente.
-      showSnackbar(
-        "La descripción del CIE-10 (2) no puede estar vacía si hay un código.",
-        "warning"
-      );
-      return;
-    } else if (
-      datosParaEnviar.codigo_cie_hosp2 === "" &&
-      datosParaEnviar.descripcion_cie_hosp2 !== ""
-    ) {
-      // Si hay descripción pero no código para CIE 2, es inconsistente.
-      showSnackbar(
-        "El código del CIE-10 (2) no puede estar vacío si hay una descripción.",
-        "warning"
-      );
-      return;
-    }
-
-    // CIE 3 (AHORA OPCIONAL: Ambos vacíos = null, inconsistente = advertencia)
-    if (
-      datosParaEnviar.codigo_cie_hosp3 === "" &&
-      datosParaEnviar.descripcion_cie_hosp3 === ""
-    ) {
-      datosParaEnviar.codigo_cie_hosp3 = null;
-      datosParaEnviar.descripcion_cie_hosp3 = null;
-    } else if (
-      datosParaEnviar.codigo_cie_hosp3 !== "" &&
-      datosParaEnviar.descripcion_cie_hosp3 === ""
-    ) {
-      // Si hay código pero no descripción para CIE 3, es inconsistente.
-      showSnackbar(
-        "La descripción del CIE-10 (3) no puede estar vacía si hay un código.",
-        "warning"
-      );
-      return;
-    } else if (
-      datosParaEnviar.codigo_cie_hosp3 === "" &&
-      datosParaEnviar.descripcion_cie_hosp3 !== ""
-    ) {
-      // Si hay descripción pero no código para CIE 3, es inconsistente.
-      showSnackbar(
-        "El código del CIE-10 (3) no puede estar vacío si hay una descripción.",
-        "warning"
-      );
-      return;
-    }
-
     setFormLoading(true);
     try {
-      const respuesta = await guardarPacienteHospi(datosParaEnviar);
+      const respuesta = await guardarPacienteObserv(datosPObserv);
 
       if (respuesta && respuesta.mensaje) {
         showSnackbar(respuesta.mensaje, "success");
@@ -417,7 +297,7 @@ export const RegistroHospi = () => {
       } else {
         showSnackbar(
           respuesta.message ||
-            "El paciente ya está hospitalizado o hubo un error.",
+            "El paciente ya está en observacion o hubo un error.",
           "error"
         );
       }
@@ -431,14 +311,14 @@ export const RegistroHospi = () => {
 
   const handleEstablecimientoChange = async (e) => {
     const establecimientoSeleccionado = e.target.value;
-    setDatos({
-      ...datosPHosp,
+    setDatosPObserv({
+      ...datosPObserv,
       id_establecimiento: establecimientoSeleccionado,
     });
   };
 
   const limpiarCampos = useCallback(() => {
-    setDatos({
+    setDatosPObserv({
       id_tipo_doc: "",
       nro_doc_pac: "",
       nombres_paciente: "",
@@ -449,16 +329,11 @@ export const RegistroHospi = () => {
       id_cama: "",
       fecha_ingreso: obtenerFecha(),
       hora_ingreso: "",
-      codigo_cie_hosp1: "",
-      descripcion_cie_hosp1: "",
-      codigo_cie_hosp2: "",
-      descripcion_cie_hosp2: "",
-      codigo_cie_hosp3: "",
-      descripcion_cie_hosp3: "",
+      codigo_cie_observ: "",
+      descripcion_cie_observ: "",
       observacion: "",
       id_establecimiento: esAdmin ? "" : "1",
     });
-    setIsVisible(false); // Ocultar CIE adicionales al limpiar
   }, [esAdmin, obtenerFecha]);
 
   // Asegúrate de que estas props se pasen a BaseFormLayout
@@ -480,7 +355,7 @@ export const RegistroHospi = () => {
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <BaseFormLayout
-        title="Registro de Ingreso Hospitalario"
+        title="Registro de Ingreso a Observacion"
         snackbar={snackbar}
         dialog={dialog}
       >
@@ -498,7 +373,7 @@ export const RegistroHospi = () => {
                 </InputLabel>
                 <Select
                   labelId="establecimiento-label"
-                  value={datosPHosp.id_establecimiento}
+                  value={datosPObserv.id_establecimiento}
                   label="Establecimiento"
                   onChange={handleEstablecimientoChange}
                   disabled={!esAdmin}
@@ -533,7 +408,7 @@ export const RegistroHospi = () => {
                   labelId="tipo-doc-label"
                   id="id_tipo_doc"
                   name="id_tipo_doc"
-                  value={datosPHosp.id_tipo_doc}
+                  value={datosPObserv.id_tipo_doc}
                   label="Tipo Documento *"
                   onChange={handleChange}
                 >
@@ -554,7 +429,7 @@ export const RegistroHospi = () => {
                 fullWidth
                 label="Número de Documento *"
                 name="nro_doc_pac"
-                value={datosPHosp.nro_doc_pac}
+                value={datosPObserv.nro_doc_pac}
                 onChange={handleChange}
                 onKeyDown={handleBuscarPaciente}
                 size="small"
@@ -567,7 +442,7 @@ export const RegistroHospi = () => {
                 fullWidth
                 label="Apellidos y Nombres"
                 name="nombres_paciente"
-                value={datosPHosp.nombres_paciente}
+                value={datosPObserv.nombres_paciente}
                 size="small"
                 InputProps={{ readOnly: true }}
                 InputLabelProps={{ shrink: true }}
@@ -580,7 +455,7 @@ export const RegistroHospi = () => {
                 label="Fecha de Nacimiento"
                 size="small"
                 name="fecha_nac_pac"
-                value={dayjs(datosPHosp.fecha_nac_pac)}
+                value={dayjs(datosPObserv.fecha_nac_pac)}
                 format="DD/MM/YYYY"
                 slotProps={{
                   textField: {
@@ -598,9 +473,9 @@ export const RegistroHospi = () => {
                 label="Sexo"
                 name="sexo_pac"
                 value={
-                  datosPHosp.sexo_pac === "M"
+                  datosPObserv.sexo_pac === "M"
                     ? "Masculino"
-                    : datosPHosp.sexo_pac === "F"
+                    : datosPObserv.sexo_pac === "F"
                     ? "Femenino"
                     : ""
                 }
@@ -616,7 +491,7 @@ export const RegistroHospi = () => {
                 fullWidth
                 label="Edad"
                 name="edad"
-                value={datosPHosp.edad}
+                value={datosPObserv.edad}
                 size="small"
                 InputProps={{ readOnly: true }}
                 InputLabelProps={{ shrink: true }}
@@ -627,7 +502,7 @@ export const RegistroHospi = () => {
           </Grid>
         </FormSection>
 
-        <FormSection title="Detalles del Ingreso Hospitalario">
+        <FormSection title="Detalles del Ingreso a Observacion">
           <Grid container spacing={3}>
             <Grid size={{ xs: 12, sm: 3 }}>
               <FormControl
@@ -643,19 +518,19 @@ export const RegistroHospi = () => {
                   labelId="tipo-servicio-label"
                   id="id_tipo_servicio"
                   name="id_tipo_servicio"
-                  value={datosPHosp.id_tipo_servicio}
+                  value={datosPObserv.id_tipo_servicio}
                   label="Tipo de Servicio *"
                   onChange={handleChange}
                 >
                   <MenuItem value="">
                     <em>Seleccione un servicio</em>
                   </MenuItem>
-                  <MenuItem value="1">Medicina</MenuItem>
-                  <MenuItem value="2">Cirugia</MenuItem>
-                  <MenuItem value="3">Ginecologia</MenuItem>
-                  <MenuItem value="8">Pediatria</MenuItem>
-                  <MenuItem value="5">ARNP</MenuItem>
-                  <MenuItem value="9">Puerperio Mediato</MenuItem>
+                  {Array.isArray(tipoServicio) &&
+                    tipoServicio.map((servicio) => (
+                      <MenuItem key={servicio.id} value={servicio.id}>
+                        {servicio.descripcion}
+                      </MenuItem>
+                    ))}
                 </Select>
               </FormControl>
             </Grid>
@@ -664,15 +539,18 @@ export const RegistroHospi = () => {
                 label="Fecha de Ingreso *"
                 name="fecha_ingreso"
                 value={
-                  datosPHosp.fecha_ingreso
-                    ? dayjs(datosPHosp.fecha_ingreso)
+                  datosPObserv.fecha_ingreso
+                    ? dayjs(datosPObserv.fecha_ingreso)
                     : null
                 }
                 onChange={(newValue) => {
                   const formattedDate = newValue
                     ? newValue.format("YYYY-MM-DD")
                     : null;
-                  setDatos({ ...datosPHosp, fecha_ingreso: formattedDate });
+                  setDatosPObserv({
+                    ...datosPObserv,
+                    fecha_ingreso: formattedDate,
+                  });
                 }}
                 format="DD/MM/YYYY"
                 slotProps={{
@@ -697,7 +575,7 @@ export const RegistroHospi = () => {
                   labelId="cama-label"
                   id="id_cama"
                   name="id_cama"
-                  value={datosPHosp.id_cama}
+                  value={datosPObserv.id_cama}
                   label="Cama Asignada"
                   size="small"
                   onChange={handleChange}
@@ -719,10 +597,10 @@ export const RegistroHospi = () => {
               <TimePicker
                 label="Hora de Ingreso *"
                 name="hora_ingreso"
-                value={dayjs(datosPHosp.hora_ingreso, "HH:mm")}
+                value={dayjs(datosPObserv.hora_ingreso, "HH:mm")}
                 onChange={(newValue) =>
-                  setDatos({
-                    ...datosPHosp,
+                  setDatosPObserv({
+                    ...datosPObserv,
                     hora_ingreso: newValue ? newValue.format("HH:mm") : "",
                   })
                 }
@@ -746,31 +624,31 @@ export const RegistroHospi = () => {
             {/* Primer Diagnóstico */}
             <Grid size={{ xs: 12 }}>
               <Autocomplete
-                id="cie_hosp1_autocomplete"
-                options={cie1Props.sugerencias}
+                id="cie_observ_autocomplete"
+                options={cieProps.sugerencias}
                 getOptionLabel={(option) =>
                   `${option.codigoCie} - ${option.nombreCie}`
                 }
                 isOptionEqualToValue={(option, value) =>
                   option.codigoCie === value.codigoCie
                 }
-                onChange={cie1Props.handleCIEChange}
-                onInputChange={cie1Props.handleCIEInputChange}
-                onFocus={cie1Props.handleFocusCIE}
-                onBlur={cie1Props.handleBlurCIE}
-                onKeyDown={cie1Props.handleKeyDownCIE}
+                onChange={cieProps.handleCIEChange}
+                onInputChange={cieProps.handleCIEInputChange}
+                onFocus={cieProps.handleFocusCIE}
+                onBlur={cieProps.handleBlurCIE}
+                onKeyDown={cieProps.handleKeyDownCIE}
                 value={
-                  datosPHosp.codigo_cie_hosp1 &&
-                  datosPHosp.descripcion_cie_hosp1
+                  datosPObserv.codigo_cie_observ &&
+                  datosPObserv.descripcion_cie_observ
                     ? {
-                        codigoCie: datosPHosp.codigo_cie_hosp1,
-                        nombreCie: datosPHosp.descripcion_cie_hosp1,
+                        codigoCie: datosPObserv.codigo_cie_observ,
+                        nombreCie: datosPObserv.descripcion_cie_observ,
                       }
                     : null
                 }
-                inputValue={cie1Props.inputValue} // Usa el inputValue del hook
-                open={cie1Props.mostrarOpciones}
-                loading={cie1Props.loading}
+                inputValue={cieProps.inputValue} // Usa el inputValue del hook
+                open={cieProps.mostrarOpciones}
+                loading={cieProps.loading}
                 disabled={formLoading}
                 size="small"
                 renderInput={(params) => (
@@ -779,12 +657,12 @@ export const RegistroHospi = () => {
                     fullWidth
                     label="Código/Descripcion CIE-10"
                     placeholder="Buscar por código o descripcion"
-                    name="codigo_cie_hosp1"
+                    name="codigo_cie_observ"
                     InputProps={{
                       ...params.InputProps,
                       endAdornment: (
                         <>
-                          {cie1Props.loading ? (
+                          {cieProps.loading ? (
                             <CircularProgress color="inherit" size={20} />
                           ) : null}
                           {params.InputProps.endAdornment}
@@ -795,137 +673,6 @@ export const RegistroHospi = () => {
                 )}
               />
             </Grid>
-
-            {/* Botón para mostrar/ocultar CIE adicionales */}
-            <Grid size={{ xs: 12 }}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={isVisible}
-                    onChange={handleToggleCIE}
-                    disabled={formLoading}
-                    size="small"
-                  />
-                }
-                label={
-                  <Typography variant="body1">
-                    {isVisible
-                      ? "Ocultar Diagnósticos Adicionales"
-                      : "Agregar Diagnósticos Adicionales (Opcional)"}
-                  </Typography>
-                }
-                sx={{ mt: 1, mb: 1 }}
-              />
-            </Grid>
-
-            {isVisible && (
-              <>
-                {/* Segundo Diagnóstico */}
-                <Grid size={{ xs: 12 }}>
-                  <Autocomplete
-                    id="cie_hosp2_autocomplete"
-                    options={cie2Props.sugerencias}
-                    getOptionLabel={(option) =>
-                      `${option.codigoCie} - ${option.nombreCie}`
-                    }
-                    isOptionEqualToValue={(option, value) =>
-                      option.codigoCie === value.codigoCie
-                    }
-                    onChange={cie2Props.handleCIEChange}
-                    onInputChange={cie2Props.handleCIEInputChange}
-                    onFocus={cie2Props.handleFocusCIE}
-                    onBlur={cie2Props.handleBlurCIE}
-                    onKeyDown={cie2Props.handleKeyDownCIE}
-                    value={
-                      datosPHosp.codigo_cie_hosp2 &&
-                      datosPHosp.descripcion_cie_hosp2
-                        ? {
-                            codigoCie: datosPHosp.codigo_cie_hosp2,
-                            nombreCie: datosPHosp.descripcion_cie_hosp2,
-                          }
-                        : null
-                    }
-                    inputValue={cie2Props.inputValue}
-                    open={cie2Props.mostrarOpciones}
-                    loading={cie2Props.loading}
-                    disabled={formLoading}
-                    size="small"
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        fullWidth
-                        label="Código/Descripcion CIE-10 (2)"
-                        placeholder="Buscar por código o descripción"
-                        name="codigo_cie_hosp2"
-                        InputProps={{
-                          ...params.InputProps,
-                          endAdornment: (
-                            <>
-                              {cie2Props.loading ? (
-                                <CircularProgress color="inherit" size={20} />
-                              ) : null}
-                              {params.InputProps.endAdornment}
-                            </>
-                          ),
-                        }}
-                      />
-                    )}
-                  />
-                </Grid>
-                {/* Tercer Diagnóstico */}
-                <Grid size={{ xs: 12 }}>
-                  <Autocomplete
-                    id="cie_hosp3_autocomplete"
-                    options={cie3Props.sugerencias}
-                    getOptionLabel={(option) =>
-                      `${option.codigoCie} - ${option.nombreCie}`
-                    }
-                    isOptionEqualToValue={(option, value) =>
-                      option.codigoCie === value.codigoCie
-                    }
-                    onChange={cie3Props.handleCIEChange}
-                    onInputChange={cie3Props.handleCIEInputChange}
-                    onFocus={cie3Props.handleFocusCIE}
-                    onBlur={cie3Props.handleBlurCIE}
-                    onKeyDown={cie3Props.handleKeyDownCIE}
-                    value={
-                      datosPHosp.codigo_cie_hosp3 &&
-                      datosPHosp.descripcion_cie_hosp3
-                        ? {
-                            codigoCie: datosPHosp.codigo_cie_hosp3,
-                            nombreCie: datosPHosp.descripcion_cie_hosp3,
-                          }
-                        : null
-                    }
-                    inputValue={cie3Props.inputValue}
-                    open={cie3Props.mostrarOpciones}
-                    loading={cie3Props.loading}
-                    disabled={formLoading}
-                    size="small"
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        fullWidth
-                        label="Código/Descripcion CIE-10 (3)"
-                        placeholder="Buscar por código o descripción"
-                        name="codigo_cie_hosp3"
-                        InputProps={{
-                          ...params.InputProps,
-                          endAdornment: (
-                            <>
-                              {cie3Props.loading ? (
-                                <CircularProgress color="inherit" size={20} />
-                              ) : null}
-                              {params.InputProps.endAdornment}
-                            </>
-                          ),
-                        }}
-                      />
-                    )}
-                  />
-                </Grid>
-              </>
-            )}
           </Grid>
         </FormSection>
 
@@ -934,7 +681,7 @@ export const RegistroHospi = () => {
             fullWidth
             label="Observaciones (Opcional)"
             name="observacion"
-            value={datosPHosp.observacion}
+            value={datosPObserv.observacion}
             onChange={handleChange}
             multiline
             rows={4}

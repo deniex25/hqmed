@@ -5,6 +5,16 @@ const baseFontSize = 12;
 const spacingUnit = 6;
 
 export const HqmedTheme = createTheme({
+  breakpoints: {
+    values: {
+      xs: 0,
+      sm: 600,
+      md: 900,
+      lg: 1200,
+      xl: 1536, // Este es el valor por defecto de Material-UI para xl
+    },
+  },
+  
   palette: {
     primary: { main: "#003277" },
     secondary: { main: "#175888" },
@@ -138,12 +148,9 @@ export const HqmedTheme = createTheme({
     MuiContainer: {
       styleOverrides: {
         root: {
+          
           paddingLeft: spacingUnit * 2 + "px",
-          paddingRight: spacingUnit * 2 + "px",
-          "@media (min-width:600px)": {
-            paddingLeft: spacingUnit * 3 + "px",
-            paddingRight: spacingUnit * 3 + "px",
-          },
+          paddingRight: spacingUnit * 2 + "px",          
         },
       },
     },

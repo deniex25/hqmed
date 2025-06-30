@@ -1,5 +1,3 @@
-// src/features/hospi/components/AltaDialog.jsx
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog,
@@ -23,11 +21,6 @@ import {
 } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
-
-// Importar el hook useCIEAutocomplete
-// ¡¡¡MUY IMPORTANTE: VERIFICA ESTA RUTA!!!
-// Si AltaDialog.jsx está en src/components/, la ruta sería '../../hooks/useCIEAutocomplete'
-// Si está en src/features/hospi/components/, entonces '../../../hooks/useCIEAutocomplete' es correcto.
 import { useCIEAutocomplete } from "../hooks/useCIEAutocomplete";
 
 export const AltaDialog = ({
@@ -44,7 +37,7 @@ export const AltaDialog = ({
   const [tipoAlta, setTipoAlta] = useState("");
   const [fechaAlta, setFechaAlta] = useState(null);
   const [horaAlta, setHoraAlta] = useState(null);
-
+  const [nroHC, setNroHC] = useState("");
   // Estado local para manejar los datos del formulario, incluyendo el CIE
   // Este objeto será pasado al hook useCIEAutocomplete
   const [formData, setFormData] = useState({
@@ -83,6 +76,7 @@ export const AltaDialog = ({
     if (!open && processedIdRef.current !== null) {
       processedIdRef.current = null;
       setTipoAlta("");
+      setNroHC("");
       setFechaAlta(null);
       setHoraAlta(null);
       // Limpiar el formData que usa el hook CIE
@@ -102,6 +96,7 @@ export const AltaDialog = ({
       );
 
       setTipoAlta(initialData.tipoAlta || "alta medica");
+      setNroHC(initialData.nroHC || "");
       setFechaAlta(
         initialData.fechaAlta ? dayjs(initialData.fechaAlta) : dayjs()
       );
@@ -132,6 +127,7 @@ export const AltaDialog = ({
       const dataToSave = {
         ...initialData,
         tipoAlta,
+        nroHC,
         fechaAlta: fechaAlta.format("YYYY-MM-DD"),
         horaAlta: horaAlta.format("HH:mm:ss"),
         codigoCIEAlta: formData.cie_alta, // Usamos el valor del formData gestionado por el hook
@@ -164,7 +160,7 @@ export const AltaDialog = ({
         </DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12 }}>
+            <Grid size={{ xs: 12, sm: 6  }}>
               <FormControl fullWidth size="small">
                 <InputLabel id="tipo-alta-label">Tipo de Alta</InputLabel>
                 <Select
@@ -182,6 +178,17 @@ export const AltaDialog = ({
                   <MenuItem value="defuncion">Defunción</MenuItem>
                 </Select>
               </FormControl>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Nº Historia Clinica"
+                name="nroHC"
+                value={nroHC}
+                onChange={(e) => setNroHC(e.target.value)}
+                size="small"
+                disabled={isReadOnly}
+              />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <DatePicker

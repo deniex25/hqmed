@@ -410,6 +410,39 @@ export const obtenerReporteHospi = async (
   }
 };
 
+export const obtenerReporteObserv = async (
+  estado_observ,
+  servicio,
+  fechaInicio,
+  fechaFin,
+  idEstablecimiento
+) => {
+  let url = `/reporteObserv?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`;
+  if (estado_observ !== "todos") {
+    url += `&estado_obs=${estado_observ}`;
+  }
+  if (servicio !== "todos") {
+    url += `&id_tipo_servicio=${servicio}`;
+  }
+  if (idEstablecimiento !== "todos") {
+    url += `&id_establecimiento=${idEstablecimiento}`;
+  }
+  try {
+    const response = await fetchAPI(url, {
+      method: "GET",
+    });
+    // Verificar el código de estado HTTP
+    if (response.status !== 200 && response.status !== 201) {
+      throw { message: response.data.message || "Error desconocido" }; // Lanza un error para ser manejado por el componente
+    }
+    // Devolver los datos obtenidos de fetchAPI
+    return response.data.datos || []; // Retorna los datos o un array vacío si no hay datos
+  } catch (error) {
+    console.error("Error obteniendo reporte de observacion:", error);
+    return []; // Retorna un array vacío en caso de error
+  }
+};
+
 export const obtenerDatosSemana = async (
   servicio,
   fechaInicio,
@@ -417,14 +450,14 @@ export const obtenerDatosSemana = async (
   idEstablecimiento
 ) => {
   let url = `/reporteCalendarioCirugias?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`;
-
+  console.log(servicio);
   if (servicio !== "todos") {
     url += `&id_tipo_servicio=${servicio}`;
   }
   if (idEstablecimiento !== "todos") {
     url += `&id_establecimiento=${idEstablecimiento}`;
   }
-
+  console.log(url);
   try {
     const response = await fetchAPI(url, {
       method: "GET",
@@ -580,6 +613,7 @@ export const actualizarEstadoHospitalizacion = async (
   idHospitalizacion,
   nuevoEstado,
   tipoAlta,
+  nroHC,
   fechaAlta,
   horaAlta,
   codigoCie,
@@ -588,8 +622,9 @@ export const actualizarEstadoHospitalizacion = async (
 ) => {
   const data = {
     id_hospitalizacion: idHospitalizacion,
-    nuevoEstado: nuevoEstado,
+    nuevo_estado: nuevoEstado,
     tipo_alta: tipoAlta,
+    nro_hc: nroHC,
     fecha_alta: fechaAlta,
     hora_alta: horaAlta,
     codigo_cie_alta: codigoCie,
@@ -607,6 +642,50 @@ export const actualizarEstadoHospitalizacion = async (
     if (response.status !== 200 && response.status !== 201) {
       console.error(
         "Error actualizando el estado del paciente:",
+        response.data.message || "Error desconocido"
+      );
+      throw { message: response.data.message || "Error desconocido" }; // Lanza un error para ser manejado por el componente
+    }
+
+    // Devolver los datos obtenidos de fetchAPI
+    return response.data;
+  } catch (error) {
+    console.error("Error actualizando el estado del paciente:", error);
+    throw error;
+  }
+};
+
+export const actualizarEstadoObserv = async (
+  idObservacion,
+  nuevoEstado,
+  tipoAlta,
+  fechaAlta,
+  horaAlta,
+  codigoCie,
+  dxCie,
+  motivoAnulacion
+) => {
+  const data = {
+    id_hospitalizacion: idObservacion,
+    nuevoEstado: nuevoEstado,
+    tipo_alta: tipoAlta,
+    fecha_alta: fechaAlta,
+    hora_alta: horaAlta,
+    codigo_cie_alta: codigoCie,
+    descripcion_cie_alta: dxCie,
+    motivo_anulacion: motivoAnulacion,
+  };
+
+  try {
+    const response = await fetchAPI("/actualizarEstadoObserv", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+
+    // Verificar el código de estado HTTP
+    if (response.status !== 200 && response.status !== 201) {
+      console.error(
+        "Error actualizando el estado del paciente en observacion:",
         response.data.message || "Error desconocido"
       );
       throw { message: response.data.message || "Error desconocido" }; // Lanza un error para ser manejado por el componente
@@ -840,6 +919,58 @@ export const listarTipoDocumento = async () => {
   }
 };
 
+export const listarCausaIncidencia = async () => {
+  try {
+    const response = await fetchAPI("/listarCausaIncidencia", {
+      method: "GET",
+    });
+
+    // Verificar el código de estado HTTP
+    if (response.status !== 200 && response.status !== 201) {
+      console.error(
+        "Error al listar la causa de la incidencia:",
+        response.data.message || "Error desconocido"
+      );
+      throw { message: response.data.message || "Error desconocido" }; // Lanza un error para ser manejado por el componente
+    }
+
+    // Devolver los datos obtenidos de fetchAPI
+    return response.data;
+  } catch (error) {
+    console.error("Error al listar Causa Incidencia:", error);
+    throw error; // Propaga el error para que pueda ser manejado por el componente que llama a esta función
+  }
+};
+
+export const listarTipoCausa = async (causa) => {
+  try {
+    console.log(causa);
+    let url = `/listarTipoCausa`;
+
+    if (causa !== undefined) {
+      url += `?id_causa_incidencia=${causa}`;
+    }
+    const response = await fetchAPI(url, {
+      method: "GET",
+    });
+
+    // Verificar el código de estado HTTP
+    if (response.status !== 200 && response.status !== 201) {
+      console.error(
+        "Error al listar el tipo de la causa:",
+        response.data.message || "Error desconocido"
+      );
+      throw { message: response.data.message || "Error desconocido" }; // Lanza un error para ser manejado por el componente
+    }
+
+    // Devolver los datos obtenidos de fetchAPI
+    return response.data;
+  } catch (error) {
+    console.error("Error al listar el tipo de la causa:", error);
+    throw error; // Propaga el error para que pueda ser manejado por el componente que llama a esta función
+  }
+};
+
 export const listarProfMedico = async () => {
   try {
     const response = await fetchAPI("/listarProfMedico", {
@@ -929,7 +1060,7 @@ export const listarCamasPorServicio = async (idTipoServicio, fechaIngreso) => {
 export const listarTurnosDispo = async (turnoDispo) => {
   try {
     const response = await fetchAPI(
-      `/listarTurnosDispo?fecha_programada=${turnoDispo}`,
+      `/listarTurnosDispo?fecha_programacion=${turnoDispo}`,
       {
         method: "GET",
       }
@@ -1007,7 +1138,32 @@ export const guardarPacienteHospi = async (datosPHosp) => {
     // Verificar el código de estado HTTP
     if (response.status !== 200 && response.status !== 201) {
       console.error(
-        "Error al registrar cama:",
+        "Error al registrar hospitalizacion:",
+        response.data.message || "Error desconocido"
+      );
+      throw { message: response.data.message || "Error desconocido" }; // Lanza un error para ser manejado por el componente
+    }
+
+    // Devolver los datos obtenidos de fetchAPI
+    // Devolver el mensaje de éxito
+    return response.data; // Ahora response.data contiene el mensaje de éxito
+  } catch (error) {
+    console.error("Error al registrar la hospitalización:", error);
+    return { error: error.message };
+  }
+};
+
+export const guardarPacienteObserv = async (datosPObserv) => {
+  try {
+    const response = await fetchAPI("/guardarPacienteObserv", {
+      method: "POST",
+      body: JSON.stringify(datosPObserv),
+    });
+
+    // Verificar el código de estado HTTP
+    if (response.status !== 200 && response.status !== 201) {
+      console.error(
+        "Error al registrar observacion:",
         response.data.message || "Error desconocido"
       );
       throw { message: response.data.message || "Error desconocido" }; // Lanza un error para ser manejado por el componente

@@ -32,7 +32,7 @@ export const CustomDialog = ({
     <Dialog
       open={open}
       TransitionComponent={Transition} // Usa la transición definida
-      keepMounted // Mantiene el componente montado para un mejor rendimiento de la transición
+      //keepMounted // Mantiene el componente montado para un mejor rendimiento de la transición
       onClose={onCancel || (() => {})} // Cierra el diálogo al hacer clic fuera o presionar Esc, si onCancel existe.
       // Si no hay onCancel, se provee una función vacía para evitar errores.
       aria-labelledby="custom-dialog-title"
