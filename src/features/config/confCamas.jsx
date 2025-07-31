@@ -78,6 +78,7 @@ export const ConfCamas = () => {
     Id_Tipo_Servicio: "", // Cambiado de "0" a "" para consistencia con Select
     nombre_cama: "",
     estado_cama: "",
+    destino: "",
     detalle_motivo: "",
     id_establecimiento: esAdmin ? "todos" : null, // Si no es admin, no debería ser 'todos'
   });
@@ -258,6 +259,7 @@ export const ConfCamas = () => {
       Id_Tipo_Servicio: "",
       nombre_cama: "",
       estado_cama: "",
+      destino: "",
       detalle_motivo: "",
       id_establecimiento: esAdmin ? "todos" : null,
     });
@@ -467,7 +469,7 @@ export const ConfCamas = () => {
         <Grid size={{ xs: 12 }}>
           <FormSection title="Registrar Cama">
             <Grid container spacing={2}>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <FormControl fullWidth size="small">
                   <InputLabel id="tipo-servicio-label">
                     Tipo de Servicio
@@ -490,7 +492,7 @@ export const ConfCamas = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <FormControl fullWidth size="small" disabled={!tipoServicioId}>
                   <InputLabel id="nombre-cama-label">Nombre Cama</InputLabel>
                   <Select
@@ -509,7 +511,7 @@ export const ConfCamas = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <FormControl fullWidth size="small">
                   <InputLabel id="estado-cama-label">Estado</InputLabel>
                   <Select
@@ -525,8 +527,24 @@ export const ConfCamas = () => {
                   </Select>
                 </FormControl>
               </Grid>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel id="destino-cama-label">Destino</InputLabel>
+                  <Select
+                    labelId="destino-cama-label"
+                    value={datosFormulario.destino}
+                    label="Destino"
+                    onChange={handleFormChange}
+                    name="destino"
+                  >
+                    <MenuItem value="">Seleccione</MenuItem>
+                    <MenuItem value="hospitalizacion">Hospitalizacion</MenuItem>
+                    <MenuItem value="observacion">Observacion</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
               {datosFormulario.estado_cama === "inoperativa" && (
-                <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <TextField
                     fullWidth
                     size="small"
@@ -539,7 +557,7 @@ export const ConfCamas = () => {
                   />
                 </Grid>
               )}
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Button
                   variant="contained"
                   color="primary"
@@ -552,7 +570,7 @@ export const ConfCamas = () => {
                   {loading ? <CircularProgress size={24} /> : "Registrar Cama"}
                 </Button>
               </Grid>
-              <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Button
                   variant="outlined"
                   color="secondary"
@@ -603,6 +621,7 @@ export const ConfCamas = () => {
                       </TableCell>
                       <TableCell sx={{ minWidth: 100 }}>Nombre Cama</TableCell>
                       <TableCell sx={{ minWidth: 100 }}>Estado</TableCell>
+                      <TableCell sx={{ minWidth: 100 }}>Destino</TableCell>
                       <TableCell sx={{ minWidth: 200 }}>
                         Motivo Inoperativa
                       </TableCell>
@@ -643,6 +662,7 @@ export const ConfCamas = () => {
                             {cama.estado}
                           </Typography>
                         </TableCell>
+                        <TableCell>{cama.destino || "N/A"}</TableCell>
                         <TableCell>{cama.detalle_motivo || "N/A"}</TableCell>
                         {esAdmin && (
                           <TableCell>

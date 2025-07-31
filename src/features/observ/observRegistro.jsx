@@ -31,7 +31,7 @@ import {
   // Mantener las APIs comunes para todos los usuarios
   buscarPacientePorDocumento,
   listarTipoServicio,
-  listarCamasPorServicio,
+  listarCamasPorServicioObs,
   listarEstablecimientos,
   guardarPacienteObserv,
 } from "../../services/api";
@@ -220,7 +220,7 @@ export const RegistroObserv = () => {
     if (datosPObserv.id_tipo_servicio && datosPObserv.fecha_ingreso) {
       setFormLoading(true);
       try {
-        const camas = await listarCamasPorServicio(
+        const camas = await listarCamasPorServicioObs(
           datosPObserv.id_establecimiento,
           datosPObserv.id_tipo_servicio,
           datosPObserv.fecha_ingreso

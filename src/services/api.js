@@ -1110,6 +1110,30 @@ export const listarCamasPorServicio = async (
   }
 };
 
+export const listarCamasPorServicioObs = async (
+  establecimiento,
+  idTipoServicio,
+  fechaIngreso
+) => {
+  try {
+    let url = `/listarCamasDispoObs?id_establecimiento=${establecimiento}&id_tipo_servicio=${idTipoServicio}&fecha_ingreso=${fechaIngreso}`;
+    console.log(url);
+    const response = await fetchAPI(url, {
+      method: "GET",
+    });
+    // Verificar el código de estado HTTP
+    if (response.status !== 200 && response.status !== 201) {
+      throw { message: response.data.message || "Error desconocido" }; // Lanza un error para ser manejado por el componente
+    }
+
+    // Devolver los datos obtenidos de fetchAPI
+    return response.data.datos || []; // Retorna directamente los datos obtenidos de fetchAPI
+  } catch (error) {
+    console.error("Error al listar Camas Disponibles por Servicio:", error);
+    return []; // Retorna un array vacío en caso de error
+  }
+};
+
 export const listarTurnosDispo = async (idEstablecimiento, turnoDispo) => {
   try {
     const response = await fetchAPI(
