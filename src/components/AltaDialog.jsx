@@ -156,7 +156,7 @@ export const AltaDialog = ({
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
         <DialogTitle sx={{ fontWeight: "bold" }}>
-          Alta Hospitalización
+          Alta Paciente
         </DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={2}>

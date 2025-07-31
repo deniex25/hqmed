@@ -153,6 +153,7 @@ export const ReporteObserv = () => {
       "Tipo Doc",
       "Nro Doc",
       "Paciente",
+      "Genero",
       "Estado",
       "Codigo CIE Alta",
       "Diagnostico CIE Alta",
@@ -176,6 +177,7 @@ export const ReporteObserv = () => {
         "Tipo Doc": observacion.Abrev_Tipo_Doc,
         "Nro Doc": observacion.nro_doc_pac,
         Paciente: observacion.Paciente,
+        Genero: observacion.sexo_pac,
         Estado: observacion.estado_obs,
         "Codigo CIE Alta": observacion.codigo_cie_alta,
         "Diagnostico CIE Alta": observacion.descripcion_cie_alta,
@@ -303,6 +305,7 @@ export const ReporteObserv = () => {
         selectedObservData.id, // Usa el ID de la observacion que abrio el diálogo
         "egreso",
         altaData.tipoAlta,
+        altaData.nroHC,
         altaData.fechaAlta, // Ya viene formateado como string "YYYY-MM-DD"
         altaData.horaAlta, // Ya viene formateado como string "HH:mm:ss"
         altaData.codigoCIEAlta,
@@ -395,6 +398,7 @@ export const ReporteObserv = () => {
         idToAnnull,
         "anulado",
         null, // tipoAlta
+        null, // nroHC
         null, // fechaAlta
         null, // horaAlta
         null, // codigoCIEAlta

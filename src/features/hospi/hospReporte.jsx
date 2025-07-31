@@ -259,6 +259,7 @@ export const ReporteHospi = () => {
   // =========================================================
 
   const handleOpenAltaDialog = (hospitalizationData) => {
+    console.log(hospitalizationData);
     // <-- Recibe los datos directamente
     if (!hospitalizationData) {
       // Esto no debería ocurrir si se llama desde el botón de la fila
@@ -278,8 +279,8 @@ export const ReporteHospi = () => {
     if (hospitalizationData.estado_hosp === "hospitalizado") {
       setSelectedHospitalizationData({
         id: hospitalizationData.id_hospitalizacion, // ID esencial para la operación
-        // Si AltaDialog necesita pre-llenar campos de una hosp. existente, pásalos aquí:
-        tipoAlta: hospitalizationData.tipo_alta || "alta medica", // Asegúrate que estas props existan en tu objeto de datos si las vas a usar.
+        nroHC: hospitalizationData.num_historia_clinica,
+        tipoAlta: hospitalizationData.tipo_alta, // Asegúrate que estas props existan en tu objeto de datos si las vas a usar.
         fechaAlta: hospitalizationData.fecha_alta, // Pasa como string, AltaDialog lo convierte a dayjs
         horaAlta: hospitalizationData.hora_alta, // Pasa como string, AltaDialog lo convierte a dayjs
         codigoCIEAlta: hospitalizationData.codigo_cie_alta,

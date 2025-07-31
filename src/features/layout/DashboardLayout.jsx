@@ -15,14 +15,13 @@ import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
-
+import Tooltip from "@mui/material/Tooltip";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import LogoutTwoToneIcon from "@mui/icons-material/LogoutTwoTone";
 import VaccinesTwoToneIcon from "@mui/icons-material/VaccinesTwoTone";
 import TableViewTwoToneIcon from "@mui/icons-material/TableViewTwoTone";
-import HotelTwoToneIcon from "@mui/icons-material/HotelTwoTone";
 import BedroomParentTwoToneIcon from "@mui/icons-material/BedroomParentTwoTone";
-import Person3TwoToneIcon from '@mui/icons-material/Person3TwoTone';
+import Person3TwoToneIcon from "@mui/icons-material/Person3TwoTone";
 import CalendarMonthTwoToneIcon from "@mui/icons-material/CalendarMonthTwoTone";
 import AppRegistrationTwoToneIcon from "@mui/icons-material/AppRegistrationTwoTone";
 import SummarizeTwoToneIcon from "@mui/icons-material/SummarizeTwoTone";
@@ -100,6 +99,9 @@ export const DashboardLayout = () => {
     setOpen(!open);
   };
 
+  const rol = sessionStorage.getItem("id_tipo_usuario");
+  const esAdmin = parseInt(rol) === 1;
+
   const location = useLocation();
 
   const createNavLink = (to, icon, text) => (
@@ -111,7 +113,7 @@ export const DashboardLayout = () => {
         // ESTILOS POR DEFECTO (para pantallas grandes si no se sobrescriben)
         minHeight: 48,
         justifyContent: open ? "initial" : "center", // Este lo dejas para la animación
-        px: 5.8, // Padding por defecto (ej. para desktop)
+        px: 4, // Padding por defecto (ej. para desktop)
 
         // ESTILOS ESPECÍFICOS PARA PANTALLAS PEQUEÑAS
         [theme.breakpoints.down("sm")]: {
@@ -120,7 +122,7 @@ export const DashboardLayout = () => {
           // según tu requerimiento original:
           minHeight: 40, // Puedes dejarlo igual o ajustar
           justifyContent: "center", // Si quieres que siempre esté centrado en móvil cuando está contraído
-          px: 4.5, // El padding más grande que mencionaste para móvil
+          px: 3, // El padding más grande que mencionaste para móvil
         },
       }}
       onClick={() => {
@@ -132,16 +134,28 @@ export const DashboardLayout = () => {
             setOpen(false); // Ciérralo (contráelo a solo iconos)
           }
         }
-        // En pantallas grandes (isDesktop es true), la lógica de onClick no se ejecuta automáticamente aquí.
-        // Si quieres que en desktop al hacer clic en un item se expanda el drawer,
-        // puedes añadir una condición else:
-        // else {
-        //   if (!open) setOpen(true);
-        // }
       }}
     >
-      <ListItemIcon>{icon}</ListItemIcon>
-      <ListItemText primary={text} />
+      {/* Condicionalmente renderiza el Tooltip */}
+      {/* El Tooltip solo se muestra cuando el Drawer está cerrado (!open) */}
+      {!open ? (
+        <Tooltip title={text} placement="right">
+          {" "}
+          {/* Añadir Tooltip aquí */}
+          <ListItemIcon
+            sx={{
+              minWidth: 0,
+              mr: open ? 3 : "auto",
+              justifyContent: "center",
+            }}
+          >
+            {icon}
+          </ListItemIcon>
+        </Tooltip>
+      ) : (
+        <ListItemIcon>{icon}</ListItemIcon>
+      )}
+      <ListItemText primary={text} sx={{ opacity: open ? 1 : 0 }} />
     </ListItemButton>
   );
   const handleLogout = () => {
@@ -212,7 +226,11 @@ export const DashboardLayout = () => {
             <TableViewTwoToneIcon />,
             "Reporte Hospitalizacion"
           )}
-          {createNavLink("/censoscamas", <Person3TwoToneIcon />, "Censos Camas")}
+          {createNavLink(
+            "/censoscamas",
+            <Person3TwoToneIcon />,
+            "Censos Camas"
+          )}
           <Divider sx={{ my: 1 }} />
           {createNavLink(
             "/registroobserv",
@@ -254,7 +272,7 @@ export const DashboardLayout = () => {
             "Datos Camas"
           )}
           {createNavLink(
-            "/confpaciente",
+            "/confpacientes",
             <PersonAddTwoToneIcon />,
             "Datos Paciente"
           )}
@@ -263,11 +281,12 @@ export const DashboardLayout = () => {
             <BadgeTwoToneIcon />,
             "Datos Personal"
           )}
-          {createNavLink(
+          {esAdmin && (
+          createNavLink(
             "/registrousuario",
             <ManageAccountsTwoToneIcon />,
             "Registrar Usuario"
-          )}
+          ))}
           {createNavLink(
             "/cambiarcontra",
             <SyncLockTwoToneIcon />,

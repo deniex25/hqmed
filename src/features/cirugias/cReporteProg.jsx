@@ -70,7 +70,7 @@ export const ReporteCirugiasProgramadas = () => {
   const [estadoHospFiltro, setEstadoHospFiltro] = useState("todos"); // Filtro por estado de programación
   const [servicioFiltro, setServicioFiltro] = useState("todos"); // Filtro por servicio (si aplica)
   const [fechaInicio, setFechaInicio] = useState(dayjs(obtenerFecha(-7)));
-  const [fechaFin, setFechaFin] = useState(dayjs(obtenerFecha(0)));
+  const [fechaFin, setFechaFin] = useState(dayjs(obtenerFecha(7)));
   const [establecimientos, setEstablecimientos] = useState([]);
   const [idEstablecimiento, setIdEstablecimiento] = useState("todos");
   const rol = sessionStorage.getItem("id_tipo_usuario");
@@ -266,12 +266,10 @@ export const ReporteCirugiasProgramadas = () => {
 
       if (estado === "programado" || estado === "reprogramado") {
         // Navegar a la página de registro de operación
-        navigate("/dashboard/reporteOperatorio", {
+        navigate("/reporteoperatorio", {
           state: {
             idTipoDocPac: cirugiaData.id_tipo_doc,
             nroDocPac: cirugiaData.nro_doc_pac,
-            // Puedes pasar más datos si son necesarios para la pantalla de reporteOperatorio
-            idCirugiaProgramada: cirugiaData.id_cirugia_programada,
             fechaProgramada: cirugiaData.fecha_programada,
           },
         });
@@ -568,6 +566,7 @@ export const ReporteCirugiasProgramadas = () => {
                   <DatePicker
                     label="Fecha de Inicio"
                     value={fechaInicio}
+                    format="DD/MM/YYYY"
                     onChange={(newValue) => setFechaInicio(newValue)}
                     slotProps={{
                       textField: { fullWidth: true, size: "small" },
@@ -578,6 +577,7 @@ export const ReporteCirugiasProgramadas = () => {
                   <DatePicker
                     label="Fecha Fin"
                     value={fechaFin}
+                    format="DD/MM/YYYY"
                     onChange={(newValue) => setFechaFin(newValue)}
                     slotProps={{
                       textField: { fullWidth: true, size: "small" },
@@ -743,7 +743,6 @@ export const ReporteCirugiasProgramadas = () => {
                       color="success"
                       startIcon={<FileDownloadTwoToneIcon />}
                       onClick={exportarExcel}
-                      //sx={{ p: 1.5 }}
                     >
                       Exportar a Excel
                     </Button>

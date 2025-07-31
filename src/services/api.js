@@ -218,10 +218,17 @@ export async function fetchAPI(endpoint, options = {}) {
       } catch {
         errorMessage += "No se pudo obtener más información";
       }
+
+      // Si la petición es al endpoint '/login' y recibimos 401/403,
+      // NO debemos forzar el logout, solo lanzar el error para que LoginPage lo maneje.
+      const isLoginAttempt = endpoint === "/login";
       // Si la respuesta es 401 o 403, forzar logout (esto es importante para tokens inválidos no expirados)
-      if (response.status === 401 || response.status === 403) {
+      if (
+        (response.status === 401 || response.status === 403) &&
+        !isLoginAttempt
+      ) {
         console.warn(
-          `fetchAPI: Token inválido o no autorizado (${response.status}). Forzando logout.`
+          `fetchAPI: Token inválido o no autorizado (${response.status}) en ${endpoint}. Forzando logout.`
         );
         logoutUsuario(); // Esto ya redirige
       }
@@ -240,11 +247,15 @@ export async function fetchAPI(endpoint, options = {}) {
     ) {
       throw error;
     }
+    const isLoginAttempt = endpoint === "/login";
     // Si es un error de red o no autorizado por el backend para cualquier otra petición
     if (
-      error.status === 401 ||
-      error.status === 403 ||
-      error.message.includes("Failed to fetch")
+      (error.status === 401 ||
+        error.status === 403 ||
+        error.message.includes(
+          "Fallo en la conexion, contacte al Administrador"
+        )) &&
+      !isLoginAttempt
     ) {
       console.warn(
         `fetchAPI: Error de red o no autorizado en ${endpoint}. Forzando logout.`
@@ -312,14 +323,21 @@ export const logoutUsuario = () => {
 
 export const changePassword = async (data) => {
   try {
-    const responseData = await fetchAPI("/changePassword", {
+    const response = await fetchAPI("/changePassword", {
       method: "POST",
       body: JSON.stringify(data),
     });
-    return { status: responseData.status, mensaje: responseData.data.message };
+
+    return {
+      success: response.status === 200,
+      message: response.data?.message || "",
+    };
   } catch (error) {
     console.error("Error al intentar cambiar la contraseña:", error);
-    throw error; // Propaga el error para que pueda ser manejado por el componente que llama a esta función
+    return {
+      success: false,
+      message: "Error de red o del servidor.",
+    };
   }
 };
 
@@ -450,14 +468,14 @@ export const obtenerDatosSemana = async (
   idEstablecimiento
 ) => {
   let url = `/reporteCalendarioCirugias?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`;
-  console.log(servicio);
+
   if (servicio !== "todos") {
     url += `&id_tipo_servicio=${servicio}`;
   }
   if (idEstablecimiento !== "todos") {
     url += `&id_establecimiento=${idEstablecimiento}`;
   }
-  console.log(url);
+
   try {
     const response = await fetchAPI(url, {
       method: "GET",
@@ -554,15 +572,37 @@ export const buscarPacientePorDocumento = async (id_tipo_doc, nro_doc_pac) => {
     // Devolver los datos obtenidos de fetchAPI
     return response.data; // Retorna directamente los datos obtenidos de fetchAPI
   } catch (error) {
-    console.error("Error al registrar la Intervencion Quirurgica:", error);
+    console.error("Error al registrar al paciente:", error);
     throw error; // Propaga el error para que pueda ser manejado por el componente que llama a esta función
   }
 };
 
-export const buscarPacienteProg = async (id_tipo_doc, nro_doc_pac) => {
+export const buscarPersonalPorDocumento = async (id_tipo_doc, nro_doc_per) => {
   try {
     const response = await fetchAPI(
-      `/buscarPacienteProg?id_tipo_doc=${id_tipo_doc}&nro_doc_pac=${nro_doc_pac}`
+      `/buscarPersonalDoc?id_tipo_doc=${id_tipo_doc}&nro_doc_per=${nro_doc_per}`
+    );
+    // Verificar el código de estado HTTP
+    if (response.status !== 200 && response.status !== 201) {
+      throw { message: response.data.message || "Error desconocido" }; // Lanza un error para ser manejado por el componente
+    }
+
+    // Devolver los datos obtenidos de fetchAPI
+    return response.data; // Retorna directamente los datos obtenidos de fetchAPI
+  } catch (error) {
+    console.error("Error al registrar al personal:", error);
+    throw error; // Propaga el error para que pueda ser manejado por el componente que llama a esta función
+  }
+};
+
+export const buscarPacienteProg = async (
+  id_establecimiento,
+  id_tipo_doc,
+  nro_doc_pac
+) => {
+  try {
+    const response = await fetchAPI(
+      `/buscarPacienteProg?id_establecimiento=${id_establecimiento}&id_tipo_doc=${id_tipo_doc}&nro_doc_pac=${nro_doc_pac}`
     );
     // Verificar el código de estado HTTP
     if (response.status !== 200 && response.status !== 201) {
@@ -658,21 +698,23 @@ export const actualizarEstadoHospitalizacion = async (
 export const actualizarEstadoObserv = async (
   idObservacion,
   nuevoEstado,
-  tipoAlta,
-  fechaAlta,
-  horaAlta,
+  tipoEgreso,
+  nroHC,
+  fechaEgreso,
+  horaEgreso,
   codigoCie,
   dxCie,
   motivoAnulacion
 ) => {
   const data = {
-    id_hospitalizacion: idObservacion,
-    nuevoEstado: nuevoEstado,
-    tipo_alta: tipoAlta,
-    fecha_alta: fechaAlta,
-    hora_alta: horaAlta,
-    codigo_cie_alta: codigoCie,
-    descripcion_cie_alta: dxCie,
+    id_observacion: idObservacion,
+    nuevo_estado: nuevoEstado,
+    tipo_egreso: tipoEgreso,
+    nro_hc: nroHC,
+    fecha_egreso: fechaEgreso,
+    hora_egreso: horaEgreso,
+    codigo_cie_egreso: codigoCie,
+    descripcion_cie_egreso: dxCie,
     motivo_anulacion: motivoAnulacion,
   };
 
@@ -766,26 +808,26 @@ export const actualizarEstadoCamas = async (idCama, nuevoEstado, motivo) => {
   }
 };
 
-export const registrarUsuario = async (datosUsuario) => {
-  // Agrega userData como parámetro
+export const registrarUsuario = async (dataUsuario) => {
   try {
-    const response = await fetch(`${backendUrl}/registrarUsuario`, {
+    const response = await fetchAPI("/registrarUsuario", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(datosUsuario), // Envía los datos del usuario en el cuerpo de la solicitud
+      body: JSON.stringify(dataUsuario),
     });
-
-    if (!response.ok) {
-      throw new Error(`Error al registrar usuario: ${response.status}`);
+    // Verificar el código de estado HTTP
+    if (response.status !== 200 && response.status !== 201) {
+      console.error(
+        "Error al registrar datos del Usuario:",
+        response.data.message || "Error desconocido"
+      );
+      throw { message: response.data.message || "Error desconocido" }; // Lanza un error para ser manejado por el componente
     }
 
-    const data = await response.json();
-    return data; // Retorna los datos JSON directamente
+    // Devolver los datos obtenidos de fetchAPI
+    return response.data; // Retorna el mensaje de éxito
   } catch (error) {
-    console.error("Error al registrar usuario:", error);
-    throw error; // Propaga el error
+    console.error("Error al registrar el Usuario:", error);
+    return { error: error.message };
   }
 };
 
@@ -944,7 +986,6 @@ export const listarCausaIncidencia = async () => {
 
 export const listarTipoCausa = async (causa) => {
   try {
-    console.log(causa);
     let url = `/listarTipoCausa`;
 
     if (causa !== undefined) {
@@ -993,54 +1034,66 @@ export const listarProfMedico = async () => {
   }
 };
 
-export const listarProfCirujano = async () => {
+export const listarProfCirujano = async (id_establecimiento) => {
   try {
-    const response = await fetchAPI("/listarProfCirujano", {
+    // Construir la URL con el parámetro de consulta si id_establecimiento es proporcionado
+    const url = id_establecimiento
+      ? `/listarProfCirujano?id_establecimiento=${id_establecimiento}`
+      : "/listarProfCirujano"; // Si no se proporciona, puede que liste todos o falle según tu backend
+
+    const response = await fetchAPI(url, {
       method: "GET",
     });
-    // Verificar el código de estado HTTP
+
     if (response.status !== 200 && response.status !== 201) {
       console.error(
         "Error al listar Cirujano:",
         response.data.message || "Error desconocido"
       );
-      throw { message: response.data.message || "Error desconocido" }; // Lanza un error para ser manejado por el componente
+      throw { message: response.data.message || "Error desconocido" };
     }
 
-    // Devolver los datos obtenidos de fetchAPI
-    return response.data; // Retorna directamente los datos obtenidos de fetchAPI
+    return response.data;
   } catch (error) {
     console.error("Error al listar Profesionales Cirujanos:", error);
-    throw error; // Propaga el error para que pueda ser manejado por el componente que llama a esta función
+    throw error;
   }
 };
 
-export const listarProfAnestesiologo = async () => {
+export const listarProfAnestesiologo = async (id_establecimiento) => {
   try {
-    const response = await fetchAPI("/listarProfAnestesiologo", {
+    // Construir la URL con el parámetro de consulta si id_establecimiento es proporcionado
+    const url = id_establecimiento
+      ? `/listarProfAnestesiologo?id_establecimiento=${id_establecimiento}`
+      : "/listarProfAnestesiologo"; // Si no se proporciona, puede que liste todos o falle según tu backend
+
+    const response = await fetchAPI(url, {
       method: "GET",
     });
-    // Verificar el código de estado HTTP
+
     if (response.status !== 200 && response.status !== 201) {
       console.error(
         "Error al listar Anestesiologo:",
         response.data.message || "Error desconocido"
       );
-      throw { message: response.data.message || "Error desconocido" }; // Lanza un error para ser manejado por el componente
+      throw { message: response.data.message || "Error desconocido" };
     }
 
-    // Devolver los datos obtenidos de fetchAPI
-    return response.data; // Retorna directamente los datos obtenidos de fetchAPI
+    return response.data;
   } catch (error) {
-    console.error("Error al listar Profesionales Cirujanos:", error);
-    throw error; // Propaga el error para que pueda ser manejado por el componente que llama a esta función
+    console.error("Error al listar Profesionales Anestesiologos:", error);
+    throw error;
   }
 };
 
-export const listarCamasPorServicio = async (idTipoServicio, fechaIngreso) => {
+export const listarCamasPorServicio = async (
+  establecimiento,
+  idTipoServicio,
+  fechaIngreso
+) => {
   try {
-    let url = `/listarCamasDispo?id_tipo_servicio=${idTipoServicio}&fecha_ingreso=${fechaIngreso}`;
-
+    let url = `/listarCamasDispo?id_establecimiento=${establecimiento}&id_tipo_servicio=${idTipoServicio}&fecha_ingreso=${fechaIngreso}`;
+    console.log(url);
     const response = await fetchAPI(url, {
       method: "GET",
     });
@@ -1057,10 +1110,10 @@ export const listarCamasPorServicio = async (idTipoServicio, fechaIngreso) => {
   }
 };
 
-export const listarTurnosDispo = async (turnoDispo) => {
+export const listarTurnosDispo = async (idEstablecimiento, turnoDispo) => {
   try {
     const response = await fetchAPI(
-      `/listarTurnosDispo?fecha_programacion=${turnoDispo}`,
+      `/listarTurnosDispo?id_establecimiento=${idEstablecimiento}&fecha_programacion=${turnoDispo}`,
       {
         method: "GET",
       }
@@ -1091,7 +1144,7 @@ export const guardarPaciente = async (data) => {
     // Verificar el código de estado HTTP
     if (response.status !== 200 && response.status !== 201) {
       console.error(
-        "Error al registrar cama:",
+        "Error al registrar/actualizar datos del Paciente:",
         response.data.message || "Error desconocido"
       );
       throw { message: response.data.message || "Error desconocido" }; // Lanza un error para ser manejado por el componente
@@ -1114,7 +1167,7 @@ export const guardarPersonal = async (data) => {
     // Verificar el código de estado HTTP
     if (response.status !== 200 && response.status !== 201) {
       console.error(
-        "Error al registrar cama:",
+        "Error al registrar/actualizar datos del Personal:",
         response.data.message || "Error desconocido"
       );
       throw { message: response.data.message || "Error desconocido" }; // Lanza un error para ser manejado por el componente
@@ -1178,22 +1231,21 @@ export const guardarPacienteObserv = async (datosPObserv) => {
   }
 };
 
-export const generarPDF = async (datos) => {
+export const generarPDF = async (data) => {
   try {
     const token = sessionStorage.getItem("token"); // Obtener el token de sesión
-
     if (!token) {
       throw new Error("No hay token disponible");
     }
     const response = await fetch(`${backendUrl}/generarPDF`, {
       method: "POST",
-      body: JSON.stringify(datos),
+      body: JSON.stringify(data),
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`, // Agregar el token en el encabezado
       },
     });
-
+    console.log(response);
     if (!response.ok) {
       throw new Error(`Error al generar PDF: ${response.statusText}`);
     }

@@ -23,6 +23,8 @@ import {
   Checkbox,
   FormControlLabel,
 } from "@mui/material";
+import ClearAllIcon from "@mui/icons-material/ClearAll";
+import SaveTwoToneIcon from "@mui/icons-material/SaveTwoTone";
 import Autocomplete from "@mui/material/Autocomplete";
 import {
   DatePicker,
@@ -32,7 +34,7 @@ import {
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { CustomSnackbar } from "../../components/CustomSnackbar";
 import { CustomDialog } from "../../components/CustomDialog";
 
@@ -59,6 +61,8 @@ export const ReporteOperatorio = () => {
   const [profAnestesiologo, setProfAnestesiologo] = useState([]);
   const [causaIncidencia, setCausaIncidencia] = useState([]);
   const [tipoCausa, setTipoCausa] = useState([]);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const rol = sessionStorage.getItem("id_tipo_usuario");
   const esAdmin = parseInt(rol) === 1;
@@ -109,6 +113,9 @@ export const ReporteOperatorio = () => {
     detalle_anat_pato: "", // Solo si anatomia_patologica es true
     material_gasas: false, // Booleano para "¿Material: Gasas?"
     material_tapon: false, // Booleano para "¿Material: Tapón?"
+    id_establecimiento: esAdmin
+      ? ""
+      : sessionStorage.getItem("id_establecimiento") || "1",
   });
 
   // --- Funciones de Utilidad (Snackbar, Dialog, Actualización de Form) ---
@@ -152,25 +159,40 @@ export const ReporteOperatorio = () => {
     "ambos"
   );
 
+  useEffect(() => {
+    if (location.state) {
+      setDatosPIQ((prev) => ({
+        ...prev,
+        id_tipo_doc: location.state.idTipoDocPac || "",
+        nro_doc_pac: location.state.nroDocPac || "",
+        fecha_intervencion: location.state.fechaProgramada || "",
+      }));
+    }
+  }, [location.state]);
   // --- Carga de Datos Iniciales (Listas Maestras) ---
   useEffect(() => {
     const cargarDatosIniciales = async () => {
       setFormLoading(true);
       try {
-        const [tservicio, medCirujano, medAnestesiologo, causa] =
-          await Promise.all([
-            listarTipoServicio(),
-            listarProfCirujano(),
-            listarProfAnestesiologo(),
-            listarCausaIncidencia(),
-          ]);
+        const [tservicio, causa] = await Promise.all([
+          listarTipoServicio(),
+          listarCausaIncidencia(),
+        ]);
         setTipoServicio(tservicio);
-        setProfCirujano(medCirujano);
-        setProfAnestesiologo(medAnestesiologo);
         setCausaIncidencia(causa);
         if (esAdmin) {
           const datosEstab = await listarEstablecimientos();
           setEstablecimientos(datosEstab.establecimientos || []);
+        } else {
+          // Para usuarios no administradores, el establecimiento es fijo
+          const userEstablecimientoId =
+            sessionStorage.getItem("id_establecimiento");
+          if (userEstablecimientoId) {
+            setDatosPIQ((prev) => ({
+              ...prev,
+              id_establecimiento: userEstablecimientoId,
+            }));
+          }
         }
       } catch (error) {
         console.error("Error al cargar datos iniciales:", error);
@@ -210,10 +232,52 @@ export const ReporteOperatorio = () => {
     cargarTiposDeCausaPorId();
   }, [datosPIQ.causa_incidencia, showSnackbar]);
 
+  useEffect(() => {
+    const cargarDatosDependientes = async () => {
+      // Solo carga profesionales si hay un establecimiento seleccionado
+      if (datosPIQ.id_establecimiento) {
+        // <-- Condición corregida: ¡si SÍ hay id_establecimiento!
+        setFormLoading(true);
+        try {
+          const [cirujanos, anestesiologos] = await Promise.all([
+            listarProfCirujano(datosPIQ.id_establecimiento),
+            listarProfAnestesiologo(datosPIQ.id_establecimiento),
+          ]);
+          setProfCirujano(cirujanos);
+          setProfAnestesiologo(anestesiologos);
+        } catch (error) {
+          console.error("Error al cargar datos dependientes:", error);
+          showSnackbar(
+            "Error al cargar profesionales o turnos. Intente de nuevo.",
+            "error"
+          ); // Asegúrate de limpiar los campos en caso de error
+          setProfCirujano([]);
+          setProfAnestesiologo([]);
+        } finally {
+          setFormLoading(false);
+        }
+      } else {
+        // Si no hay establecimiento seleccionado, limpiar los profesionales
+        setProfCirujano([]);
+        setProfAnestesiologo([]);
+      }
+    };
+    cargarDatosDependientes();
+  }, [datosPIQ.id_establecimiento, showSnackbar]);
+
   const handleBuscarPaciente = async (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
       setFormLoading(true);
+
+      if (esAdmin && !datosPIQ.id_establecimiento) {
+        showSnackbar(
+          "Por favor, seleccione un establecimiento antes de buscar un paciente.",
+          "warning"
+        );
+        setFormLoading(false);
+        return;
+      }
 
       if (!datosPIQ.id_tipo_doc || !datosPIQ.nro_doc_pac) {
         showSnackbar(
@@ -226,14 +290,19 @@ export const ReporteOperatorio = () => {
 
       try {
         const resultado = await buscarPacienteProg(
+          datosPIQ.id_establecimiento,
           datosPIQ.id_tipo_doc,
           datosPIQ.nro_doc_pac
         );
+        console.log(resultado);
         if (resultado.mensaje) {
           showDialog(
             "Paciente no programado",
-            resultado.mensaje,
-            () => closeDialog(),
+            "¿Desea registrar la programacion?",
+            () => {
+              closeDialog();
+              navigate("/registroprog");
+            },
             null
           );
           setDatosPIQ((prevDatos) => ({
@@ -246,10 +315,10 @@ export const ReporteOperatorio = () => {
         } else {
           setDatosPIQ((prevDatos) => ({
             ...prevDatos,
-            nombres_paciente: resultado.nombres_paciente || "",
-            sexo_pac: resultado.sexo_pac || "",
-            edad_atencion_pac: resultado.edad || "", // Usa el nombre de estado unificado
-            fecha_intervencion: resultado.fecha_intervencion || null,
+            nombres_paciente: resultado.nombres_paciente,
+            sexo_pac: resultado.sexo_pac,
+            edad_atencion_pac: resultado.edad, // Usa el nombre de estado unificado
+            fecha_intervencion: resultado.fecha_programada,
           }));
           showSnackbar("Paciente encontrado exitosamente.", "success");
         }
@@ -290,7 +359,7 @@ export const ReporteOperatorio = () => {
         }
       } else if (name === "complicacion_iq") {
         // Si complicacion_iq ya NO es 'si', limpia el detalle
-        if (value !== true) {
+        if (!checked) {
           newDatos.detalle_complicacion_iq = "";
         }
       }
@@ -333,7 +402,7 @@ export const ReporteOperatorio = () => {
       "tipo_anestesia_aplicada",
       "hallazgo_operatorio",
       "tecnica_procedimiento",
-      "complicacion_iq",
+      //"complicacion_iq",
       "estado_pac_egreso",
       "destino_pac_egreso",
     ];
@@ -400,11 +469,13 @@ export const ReporteOperatorio = () => {
         // pero la validación anterior ya debería manejarlo.
         // Asegúrate de que los campos que vienen de la API de búsqueda de paciente estén en el objeto.
       };
-
+      console.log(datosParaEnviar);
       const respuesta = await registrarIntervencionQ(datosParaEnviar);
 
+      console.log(respuesta);
       if (respuesta && respuesta.mensaje) {
         showSnackbar(respuesta.mensaje, "success");
+        handleGenerarPDF();
         limpiarCampos();
       } else {
         showSnackbar(
@@ -469,8 +540,21 @@ export const ReporteOperatorio = () => {
       detalle_anat_pato: "",
       material_gasas: false, // Booleano
       material_tapon: false, // Booleano
+      id_establecimiento: esAdmin
+        ? ""
+        : sessionStorage.getItem("id_establecimiento") || "1",
     });
   }, []);
+
+  const handleGenerarPDF = async () => {
+    try {
+      const blob = await generarPDF(datosPIQ);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } catch (error) {
+      console.error("Error al generar PDF:", error);
+    }
+  };
 
   // Asegúrate de que estas props se pasen a BaseFormLayout
   const snackbar = {
@@ -514,43 +598,41 @@ export const ReporteOperatorio = () => {
         {esAdmin && (
           <FormSection title="Datos del Establecimiento">
             <Grid container spacing={3}>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <FormControl
-                  fullWidth
-                  size="small"
-                  required
-                  disabled={formLoading}
+              {!datosPIQ.id_establecimiento && (
+                <em>Antes de continuar debe seleccionar un Establecimiento</em>
+              )}
+              <FormControl
+                fullWidth
+                size="small"
+                required
+                disabled={formLoading}
+              >
+                <InputLabel id="establecimiento-label">
+                  Seleccione un Establecimiento
+                </InputLabel>
+                <Select
+                  labelId="establecimiento-label"
+                  value={datosPIQ.id_establecimiento}
+                  label="Seleccione un Establecimiento"
+                  onChange={handleEstablecimientoChange}
+                  disabled={!esAdmin || formLoading}
                 >
-                  <InputLabel id="establecimiento-label">
-                    Establecimiento
-                  </InputLabel>
-                  <Select
-                    labelId="establecimiento-label"
-                    value={datosPIQ.id_establecimiento}
-                    label="Establecimiento"
-                    onChange={handleEstablecimientoChange}
-                    disabled={!esAdmin || formLoading}
-                    name="id_establecimiento"
-                  >
-                    <MenuItem value="">
-                      <em>Seleccione</em>
+                  <MenuItem value="">
+                    <em>Seleccione</em>
+                  </MenuItem>
+                  {establecimientos.map((estab) => (
+                    <MenuItem key={estab.id} value={estab.id}>
+                      {estab.descripcion}
                     </MenuItem>
-                    {establecimientos.map((estab) => (
-                      <MenuItem key={estab.id} value={estab.id}>
-                        {estab.descripcion}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
           </FormSection>
         )}
 
         <FormSection title="Información del Paciente">
           <Grid container spacing={3}>
-            {" "}
-            {/* Aumentado el spacing para más aire */}
             <Grid size={{ xs: 12, sm: 4 }}>
               <FormControl
                 fullWidth
@@ -1171,17 +1253,21 @@ export const ReporteOperatorio = () => {
                 label="Complicacion durante la Intervencion"
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 3 }}>
-              <TextField
-                fullWidth
-                label="Especificar complicacion"
-                name="detalle_complicacion_iq"
-                value={datosPIQ.detalle_complicacion_iq}
-                onChange={handleChange}
-                size="small"
-                disabled={formLoading}
-              />
-            </Grid>
+            {datosPIQ.complicacion_iq && (
+              <>
+                <Grid size={{ xs: 12, sm: 3 }}>
+                  <TextField
+                    fullWidth
+                    label="Especificar complicacion"
+                    name="detalle_complicacion_iq"
+                    value={datosPIQ.detalle_complicacion_iq}
+                    onChange={handleChange}
+                    size="small"
+                    disabled={formLoading}
+                  />
+                </Grid>
+              </>
+            )}
             <Grid size={{ xs: 12, sm: 3 }}>
               <FormControl
                 fullWidth
@@ -1254,17 +1340,21 @@ export const ReporteOperatorio = () => {
                 label="Muestra de Anatomia Patologica"
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 3 }}>
-              <TextField
-                fullWidth
-                label="Especificar Muestra"
-                name="detalle_anat_pato"
-                value={datosPIQ.detalle_anat_pato}
-                onChange={handleChange}
-                size="small"
-                disabled={formLoading}
-              />
-            </Grid>
+            {datosPIQ.anatomia_patologica && (
+              <>
+                <Grid size={{ xs: 12, sm: 3 }}>
+                  <TextField
+                    fullWidth
+                    label="Especificar Muestra"
+                    name="detalle_anat_pato"
+                    value={datosPIQ.detalle_anat_pato}
+                    onChange={handleChange}
+                    size="small"
+                    disabled={formLoading}
+                  />
+                </Grid>
+              </>
+            )}
             <Grid size={{ xs: 12, sm: 3 }}>
               <FormControlLabel
                 control={
@@ -1307,6 +1397,7 @@ export const ReporteOperatorio = () => {
               variant="contained"
               color="primary"
               onClick={handleGuardar}
+              startIcon={<SaveTwoToneIcon />}
               disabled={formLoading}
               sx={{
                 width: { xs: "100%", sm: "auto" }, // 100% de ancho en móvil, ancho automático en escritorio
@@ -1321,6 +1412,7 @@ export const ReporteOperatorio = () => {
               variant="outlined"
               color="secondary"
               onClick={limpiarCampos}
+              startIcon={<ClearAllIcon />}
               disabled={formLoading}
               sx={{
                 width: { xs: "100%", sm: "auto" }, // 100% de ancho en móvil, ancho automático en escritorio

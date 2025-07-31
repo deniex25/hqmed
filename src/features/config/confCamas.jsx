@@ -23,12 +23,12 @@ import {
 import AddIcon from "@mui/icons-material/Add"; // Icono para guardar/registrar
 import ChangeCircleIcon from "@mui/icons-material/ChangeCircle"; // Icono para cambiar estado
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever"; // Icono para anular
-import ClearAllIcon from "@mui/icons-material/ClearAll"; // Icono para limpiar
+import ClearAllTwoToneIcon from "@mui/icons-material/ClearAllTwoTone";
 
-import { BaseFormLayout } from "../layout/BaseFormLayout"; // Si tienes este layout
-import { FormSection } from "../layout/FormSection"; // Si tienes este componente de sección
-import { useAlerts } from "../../hooks/useAlerts"; // Tu hook de alertas personalizado
-import { CustomDialog } from "../../components/CustomDialog"; // Tu componente de diálogo personalizado
+import { BaseFormLayout } from "../layout/BaseFormLayout";
+import { FormSection } from "../layout/FormSection";
+import { useAlerts } from "../../hooks/useAlerts";
+import { CustomDialog } from "../../components/CustomDialog";
 
 import {
   registrarCama,
@@ -54,12 +54,12 @@ const SERVICIOS_MAP = {
     "8OP",
     "9OP",
   ],
+  arnp: ["1A", "2A", "3A", "4A", "5A", "6A", "7A", "8A", "9A"],
   pediatria: ["1P", "2P", "3P", "4P", "5P", "6P", "7P", "8P", "9P"],
 };
 
 export const ConfCamas = () => {
-  const { snackbar, showSnackbar, dialog, hideDialog } =
-    useAlerts();
+  const { snackbar, showSnackbar, dialog, hideDialog } = useAlerts();
 
   const [listaCamas, setListaCamas] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -105,6 +105,7 @@ export const ConfCamas = () => {
     try {
       const servicios = await listarTipoServicio();
       setTipoServicioCama(servicios);
+      //console.log(servicios);
       if (esAdmin) {
         const estabs = await listarEstablecimientos();
         // Asegúrate de que estabs.establecimientos sea un array
@@ -174,13 +175,15 @@ export const ConfCamas = () => {
 
   const handleTipoServicioChange = useCallback(
     (event) => {
-      const servicioId = event.target.value;
+      const servicioId = Number(event.target.value); //Convertir a numero para que se pueda comparar
+      //console.log(servicioId);
       setTipoServicioId(servicioId);
       const servicioSeleccionado = tipoServicioCama.find(
-        (serv) => serv.id === servicioId
+        (serv) => serv.id === servicioId //Comparacion entre tipo de datos numericos
       );
+
       let nuevasOpcionesCamas = [];
-      
+
       if (servicioSeleccionado) {
         const nombreServicio = servicioSeleccionado.descripcion
           .toLowerCase()
@@ -475,12 +478,15 @@ export const ConfCamas = () => {
                     label="Tipo de Servicio"
                     onChange={handleTipoServicioChange}
                   >
-                    <MenuItem value="">Seleccione</MenuItem>
-                    {tipoServicioCama.map((servicio) => (
-                      <MenuItem key={servicio.id} value={servicio.id}>
-                        {servicio.descripcion}
-                      </MenuItem>
-                    ))}
+                    <MenuItem value="">
+                      <em>Seleccione</em>
+                    </MenuItem>
+                    <MenuItem value="1">Medicina</MenuItem>
+                    <MenuItem value="2">Cirugia</MenuItem>
+                    <MenuItem value="3">Ginecologia</MenuItem>
+                    <MenuItem value="4">Obstetricia-Partos</MenuItem>
+                    <MenuItem value="5">ARNP</MenuItem>
+                    <MenuItem value="8">Pediatria</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
@@ -516,8 +522,6 @@ export const ConfCamas = () => {
                     <MenuItem value="">Seleccione</MenuItem>
                     <MenuItem value="operativa">Operativa</MenuItem>
                     <MenuItem value="inoperativa">Inoperativa</MenuItem>
-                    <MenuItem value="anulaoa">Anulado</MenuItem>{" "}
-                    {/* Podrías incluir "anulada" aquí o manejarla solo vía acción */}
                   </Select>
                 </FormControl>
               </Grid>
@@ -554,7 +558,7 @@ export const ConfCamas = () => {
                   color="secondary"
                   onClick={limpiarCampos}
                   fullWidth
-                  startIcon={<ClearAllIcon />}
+                  startIcon={<ClearAllTwoToneIcon />}
                   sx={{ height: "40px" }}
                 >
                   Limpiar Campos

@@ -13,6 +13,8 @@ import {
   Box,
   Typography,
 } from "@mui/material";
+import ClearAllIcon from "@mui/icons-material/ClearAll";
+import SaveTwoToneIcon from "@mui/icons-material/SaveTwoTone";
 import Autocomplete from "@mui/material/Autocomplete";
 
 import {
@@ -28,7 +30,6 @@ import { useNavigate } from "react-router-dom";
 import {
   // Mantener las APIs comunes para todos los usuarios
   buscarPacientePorDocumento,
-  listarTipoDocumento,
   listarTipoServicio,
   listarCamasPorServicio,
   listarEstablecimientos,
@@ -56,8 +57,6 @@ export const RegistroObserv = () => {
   const [dialogOnCancel, setDialogOnCancel] = useState(() => () => {});
 
   const [formLoading, setFormLoading] = useState(false);
-
-  const [tipoDocumento, setTipoDocumento] = useState([]);
   const [establecimientos, setEstablecimientos] = useState([]);
 
   const rol = sessionStorage.getItem("id_tipo_usuario");
@@ -81,7 +80,9 @@ export const RegistroObserv = () => {
     codigo_cie_observ: "",
     descripcion_cie_observ: "",
     observacion: "",
-    id_establecimiento: esAdmin ? "" : "1",
+    id_establecimiento: esAdmin
+      ? ""
+      : sessionStorage.getItem("id_establecimiento") || "1",
   });
 
   const showSnackbar = useCallback((message, severity = "info") => {
@@ -127,16 +128,22 @@ export const RegistroObserv = () => {
     const cargarDatosIniciales = async () => {
       setFormLoading(true);
       try {
-        const [documentos, servicios] = await Promise.all([
-          listarTipoDocumento(),
-          listarTipoServicio(),
-        ]);
-        setTipoDocumento(documentos);
+        const [servicios] = await Promise.all([listarTipoServicio()]);
         setTipoServicio(servicios);
 
         if (esAdmin) {
           const datosEstab = await listarEstablecimientos();
           setEstablecimientos(datosEstab.establecimientos || []);
+        } else {
+          // Para usuarios no administradores, el establecimiento es fijo
+          const userEstablecimientoId =
+            sessionStorage.getItem("id_establecimiento");
+          if (userEstablecimientoId) {
+            setDatosPObserv((prev) => ({
+              ...prev,
+              id_establecimiento: userEstablecimientoId,
+            }));
+          }
         }
       } catch (error) {
         console.error("Error al cargar datos iniciales:", error);
@@ -149,7 +156,7 @@ export const RegistroObserv = () => {
       }
     };
     cargarDatosIniciales();
-  }, [esAdmin, showSnackbar, datosPObserv.id_establecimiento]);
+  }, [esAdmin, showSnackbar]);
 
   const handleBuscarPaciente = async (event) => {
     if (event.key === "Enter") {
@@ -177,7 +184,7 @@ export const RegistroObserv = () => {
             "¿Desea registrar al paciente?",
             () => {
               closeDialog();
-              navigate("/dashboard/datosPaciente");
+              navigate("/confPacientes");
             },
             () => {
               closeDialog();
@@ -209,51 +216,70 @@ export const RegistroObserv = () => {
     }
   };
 
-  useEffect(() => {
-    const fetchCamas = async () => {
-      if (datosPObserv.id_tipo_servicio && datosPObserv.fecha_ingreso) {
-        setFormLoading(true);
-        try {
-          const camas = await listarCamasPorServicio(
-            datosPObserv.id_tipo_servicio,
-            datosPObserv.fecha_ingreso
-          );
-          setCamasDisponibles(camas);
-          if (camas.length > 0) {
-            if (
-              !datosPObserv.id_cama ||
-              !camas.some((c) => c.id === datosPObserv.id_cama)
-            ) {
-              setDatosPObserv((prev) => ({
-                ...prev,
-                id_cama: camas[0].id,
-              }));
-            }
-          } else {
+  const fetchCamas = async () => {
+    if (datosPObserv.id_tipo_servicio && datosPObserv.fecha_ingreso) {
+      setFormLoading(true);
+      try {
+        const camas = await listarCamasPorServicio(
+          datosPObserv.id_establecimiento,
+          datosPObserv.id_tipo_servicio,
+          datosPObserv.fecha_ingreso
+        );
+        setCamasDisponibles(camas);
+        if (camas.length > 0) {
+          if (
+            !datosPObserv.id_cama ||
+            !camas.some((c) => c.id === datosPObserv.id_cama)
+          ) {
             setDatosPObserv((prev) => ({
               ...prev,
-              id_cama: "",
+              id_cama: camas[0].id,
             }));
-            showSnackbar(
-              "No hay camas disponibles para este servicio en la fecha seleccionada.",
-              "info"
-            );
           }
-        } catch (error) {
-          console.error("Error al obtener camas:", error);
-          showSnackbar("Error al obtener camas disponibles.", "error");
-        } finally {
-          setFormLoading(false);
+        } else {
+          setDatosPObserv((prev) => ({
+            ...prev,
+            id_cama: "",
+          }));
+          showSnackbar(
+            "No hay camas disponibles para este servicio en la fecha seleccionada.",
+            "info"
+          );
         }
-      } else {
-        setCamasDisponibles([]);
-        setDatosPObserv((prev) => ({
-          ...prev,
-          id_cama: "",
-        }));
+      } catch (error) {
+        console.error("Error al obtener camas:", error);
+        showSnackbar("Error al obtener camas disponibles.", "error");
+      } finally {
+        setFormLoading(false);
       }
-    };
-    fetchCamas();
+    } else {
+      setCamasDisponibles([]);
+      setDatosPObserv((prev) => ({
+        ...prev,
+        id_cama: "",
+      }));
+    }
+  };
+
+  useEffect(() => {
+    const establecimientoListo = esAdmin
+      ? !!datosPObserv.id_establecimiento
+      : true;
+
+    if (
+      establecimientoListo &&
+      datosPObserv.id_tipo_servicio &&
+      datosPObserv.fecha_ingreso
+    ) {
+      fetchCamas();
+    } else {
+      // Si las condiciones no se cumplen, asegurar que las camas estén vacías
+      setCamasDisponibles([]);
+      setDatosPObserv((prev) => ({
+        ...prev,
+        id_cama: "",
+      }));
+    }
   }, [
     datosPObserv.id_tipo_servicio,
     datosPObserv.fecha_ingreso,
@@ -267,6 +293,17 @@ export const RegistroObserv = () => {
       ...prevDatos,
       [name]: value,
     }));
+  };
+
+  const handleEstablecimientoChange = async (e) => {
+    const establecimientoSeleccionado = e.target.value;
+    setDatosPObserv((prev) => ({
+      ...prev,
+      id_establecimiento: establecimientoSeleccionado,
+      id_tipo_servicio: "", // Limpiar servicio y cama al cambiar establecimiento
+      id_cama: "",
+    }));
+    setCamasDisponibles([]);
   };
 
   const handleGuardar = async () => {
@@ -309,14 +346,6 @@ export const RegistroObserv = () => {
     }
   };
 
-  const handleEstablecimientoChange = async (e) => {
-    const establecimientoSeleccionado = e.target.value;
-    setDatosPObserv({
-      ...datosPObserv,
-      id_establecimiento: establecimientoSeleccionado,
-    });
-  };
-
   const limpiarCampos = useCallback(() => {
     setDatosPObserv({
       id_tipo_doc: "",
@@ -332,7 +361,9 @@ export const RegistroObserv = () => {
       codigo_cie_observ: "",
       descripcion_cie_observ: "",
       observacion: "",
-      id_establecimiento: esAdmin ? "" : "1",
+      id_establecimiento: esAdmin
+        ? ""
+        : sessionStorage.getItem("id_establecimiento") || "1",
     });
   }, [esAdmin, obtenerFecha]);
 
@@ -362,6 +393,9 @@ export const RegistroObserv = () => {
         {esAdmin && (
           <FormSection title="Datos del Establecimiento">
             <Grid container spacing={3}>
+              {!datosPObserv.id_establecimiento && (
+                <em>Antes de continuar debe seleccionar un Establecimiento</em>
+              )}
               <FormControl
                 fullWidth
                 size="small"
@@ -369,14 +403,14 @@ export const RegistroObserv = () => {
                 disabled={formLoading}
               >
                 <InputLabel id="establecimiento-label">
-                  Establecimiento
+                  Seleccione un Establecimiento
                 </InputLabel>
                 <Select
                   labelId="establecimiento-label"
                   value={datosPObserv.id_establecimiento}
-                  label="Establecimiento"
+                  label="Seleccione un Establecimiento"
                   onChange={handleEstablecimientoChange}
-                  disabled={!esAdmin}
+                  disabled={!esAdmin || formLoading}
                 >
                   <MenuItem value="">
                     <em>Seleccione</em>
@@ -394,8 +428,6 @@ export const RegistroObserv = () => {
 
         <FormSection title="Información del Paciente">
           <Grid container spacing={3}>
-            {" "}
-            {/* Aumentado el spacing para más aire */}
             <Grid size={{ xs: 12, sm: 4 }}>
               <FormControl
                 fullWidth
@@ -415,12 +447,11 @@ export const RegistroObserv = () => {
                   <MenuItem value="">
                     <em>Seleccione</em>
                   </MenuItem>
-                  {Array.isArray(tipoDocumento) &&
-                    tipoDocumento.map((doc) => (
-                      <MenuItem key={doc.id} value={doc.id}>
-                        {doc.nombre}
-                      </MenuItem>
-                    ))}
+                  <MenuItem value="1">DNI</MenuItem>
+                  <MenuItem value="2">Carnet de Extranjeria</MenuItem>
+                  <MenuItem value="3">Pasaporte</MenuItem>
+                  <MenuItem value="4">DIE</MenuItem>
+                  <MenuItem value="6">CNV</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -521,16 +552,25 @@ export const RegistroObserv = () => {
                   value={datosPObserv.id_tipo_servicio}
                   label="Tipo de Servicio *"
                   onChange={handleChange}
+                  disabled={
+                    formLoading || (esAdmin && !datosPObserv.id_establecimiento)
+                  }
                 >
                   <MenuItem value="">
                     <em>Seleccione un servicio</em>
                   </MenuItem>
-                  {Array.isArray(tipoServicio) &&
+                  <MenuItem value="1">Medicina</MenuItem>
+                  <MenuItem value="2">Cirugia</MenuItem>
+                  <MenuItem value="3">Ginecologia</MenuItem>
+                  <MenuItem value="8">Pediatria</MenuItem>
+                  <MenuItem value="5">ARNP</MenuItem>
+                  <MenuItem value="9">Puerperio Mediato</MenuItem>
+                  {/* {Array.isArray(tipoServicio) &&
                     tipoServicio.map((servicio) => (
                       <MenuItem key={servicio.id} value={servicio.id}>
                         {servicio.descripcion}
                       </MenuItem>
-                    ))}
+                    ))} */}
                 </Select>
               </FormControl>
             </Grid>
@@ -704,6 +744,7 @@ export const RegistroObserv = () => {
               variant="contained"
               color="primary"
               onClick={handleGuardar}
+              startIcon={<SaveTwoToneIcon />}
               disabled={formLoading}
               sx={{
                 width: { xs: "100%", sm: "auto" }, // 100% de ancho en móvil, ancho automático en escritorio
@@ -718,6 +759,7 @@ export const RegistroObserv = () => {
               variant="outlined"
               color="secondary"
               onClick={limpiarCampos}
+              startIcon={<ClearAllIcon />}
               disabled={formLoading}
               sx={{
                 width: { xs: "100%", sm: "auto" }, // 100% de ancho en móvil, ancho automático en escritorio

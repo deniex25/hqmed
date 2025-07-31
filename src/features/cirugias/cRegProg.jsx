@@ -10,6 +10,8 @@ import {
   CircularProgress,
   Box,
 } from "@mui/material";
+import ClearAllIcon from "@mui/icons-material/ClearAll";
+import SaveTwoToneIcon from "@mui/icons-material/SaveTwoTone";
 import Autocomplete from "@mui/material/Autocomplete";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -17,7 +19,6 @@ import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
 import {
   buscarPacientePorDocumento,
-  listarTipoDocumento,
   listarTipoServicio,
   listarEstablecimientos,
   registrarCirugiaProg,
@@ -39,7 +40,6 @@ export const RegistroProgramacion = () => {
   const [dialogOnConfirm, setDialogOnConfirm] = useState(() => () => {});
   const [dialogOnCancel, setDialogOnCancel] = useState(() => () => {});
   const [formLoading, setFormLoading] = useState(false);
-  const [tipoDocumento, setTipoDocumento] = useState([]);
   const [establecimientos, setEstablecimientos] = useState([]);
 
   const rol = sessionStorage.getItem("id_tipo_usuario");
@@ -66,7 +66,11 @@ export const RegistroProgramacion = () => {
     codigo_cie_prog: "",
     descripcion_cie_prog: "",
     procedimiento_quirurgico: "",
-    id_establecimiento: "",
+    id_establecimiento: esAdmin
+      ? ""
+      : sessionStorage.getItem("id_establecimiento")
+      ? parseInt(sessionStorage.getItem("id_establecimiento"), 10) // <-- Convertir a número aquí
+      : "",
   });
 
   const showSnackbar = useCallback((message, severity = "info") => {
@@ -112,34 +116,22 @@ export const RegistroProgramacion = () => {
     const cargarDatosIniciales = async () => {
       setFormLoading(true);
       try {
-        const [documentos, servicios, cirujanos, anestesiologos] =
-          await Promise.all([
-            listarTipoDocumento(),
-            listarTipoServicio(),
-            listarProfCirujano(),
-            listarProfAnestesiologo(),
-          ]);
-        setTipoDocumento(documentos);
+        const [servicios] = await Promise.all([listarTipoServicio()]);
         setTipoServicio(servicios);
-        setMedCirujano(cirujanos);
-        setMedAnestesiologo(anestesiologos);
 
         if (esAdmin) {
           const datosEstab = await listarEstablecimientos();
           setEstablecimientos(datosEstab.establecimientos || []);
-        }
-        if (datosPProgC.fecha_programacion) {
-          listarTurnosDispo(datosPProgC.fecha_programacion)
-            .then((turnos) => {
-              setTurnosDisponibles(turnos);
-              if (turnos.length > 0) {
-                setDatosPProgC((prev) => ({
-                  ...prev,
-                  id_orden_turno: turnos[0].id,
-                }));
-              }
-            })
-            .catch(console.error);
+        } else {
+          // Para usuarios no administradores, el establecimiento es fijo
+          const userEstablecimientoId =
+            sessionStorage.getItem("id_establecimiento");
+          if (userEstablecimientoId) {
+            setDatosPProgC((prev) => ({
+              ...prev,
+              id_establecimiento: parseInt(userEstablecimientoId, 10),
+            }));
+          }
         }
       } catch (error) {
         console.error("Error al cargar datos iniciales:", error);
@@ -152,11 +144,102 @@ export const RegistroProgramacion = () => {
       }
     };
     cargarDatosIniciales();
+  }, [esAdmin, showSnackbar]);
+
+  useEffect(() => {
+    const cargarDatosDependientes = async () => {
+      // Si no hay establecimiento seleccionado (y es administrador), o no hay fecha,
+      // limpiamos los profesionales y turnos y mostramos el aviso si aplica.
+      if (!datosPProgC.id_establecimiento) {
+        // Limpiar profesionales y turnos si no hay establecimiento
+        setMedCirujano([]);
+        setMedAnestesiologo([]);
+        setTurnosDisponibles([]);
+        setDatosPProgC((prev) => ({
+          ...prev,
+          id_orden_turno: "",
+          id_per_cirujano: "",
+          id_per_anestesiologo: "",
+        }));
+
+        // Mostrar aviso solo si es admin y se intentó seleccionar una fecha sin establecimiento
+        if (esAdmin && datosPProgC.fecha_programacion) {
+          showSnackbar(
+            "Por favor, seleccione un establecimiento antes de elegir una fecha o cargar profesionales.",
+            "warning"
+          );
+        }
+        return; // Salir de la función si no hay establecimiento
+      }
+
+      // Si hay establecimiento, cargamos los profesionales
+      setFormLoading(true); // Podrías tener un estado de carga más granular si lo necesitas
+      try {
+        const [cirujanos, anestesiologos] = await Promise.all([
+          listarProfCirujano(datosPProgC.id_establecimiento), // Pasa el ID del establecimiento
+          listarProfAnestesiologo(datosPProgC.id_establecimiento), // Pasa el ID del establecimiento
+        ]);
+        setMedCirujano(cirujanos);
+        setMedAnestesiologo(anestesiologos);
+
+        // Lógica para listar turnos disponibles (ya la tenías, la movemos aquí)
+        if (datosPProgC.fecha_programacion) {
+          const turnos = await listarTurnosDispo(
+            datosPProgC.id_establecimiento,
+            datosPProgC.fecha_programacion
+          );
+          setTurnosDisponibles(turnos);
+          if (turnos.length > 0) {
+            setDatosPProgC((prev) => ({
+              ...prev,
+              id_orden_turno: turnos[0].id,
+            }));
+          } else {
+            setDatosPProgC((prev) => ({
+              ...prev,
+              id_orden_turno: "",
+            }));
+            showSnackbar(
+              "No hay turnos disponibles para la fecha y establecimiento seleccionados.",
+              "info"
+            );
+          }
+        } else {
+          // Si no hay fecha, limpiar turnos
+          setTurnosDisponibles([]);
+          setDatosPProgC((prev) => ({
+            ...prev,
+            id_orden_turno: "",
+          }));
+        }
+      } catch (error) {
+        console.error("Error al cargar datos dependientes:", error);
+        showSnackbar(
+          "Error al cargar profesionales o turnos. Intente de nuevo.",
+          "error"
+        );
+        // Asegúrate de limpiar los campos en caso de error
+        setMedCirujano([]);
+        setMedAnestesiologo([]);
+        setTurnosDisponibles([]);
+        setDatosPProgC((prev) => ({
+          ...prev,
+          id_orden_turno: "",
+          id_per_cirujano: "",
+          id_per_anestesiologo: "",
+        }));
+      } finally {
+        setFormLoading(false);
+      }
+    };
+
+    // Llama a la función de carga de datos dependientes
+    cargarDatosDependientes();
   }, [
-    esAdmin,
-    showSnackbar,
     datosPProgC.id_establecimiento,
     datosPProgC.fecha_programacion,
+    esAdmin,
+    showSnackbar,
   ]);
 
   const handleBuscarPaciente = async (event) => {
@@ -185,7 +268,7 @@ export const RegistroProgramacion = () => {
             "¿Desea registrar al paciente?",
             () => {
               closeDialog();
-              navigate("/dashboard/datosPaciente");
+              navigate("/confPacientes");
             },
             () => {
               closeDialog();
@@ -246,9 +329,7 @@ export const RegistroProgramacion = () => {
 
     setFormLoading(true);
     try {
-      console.log(datosPProgC);
       const respuesta = await registrarCirugiaProg(datosPProgC);
-      console.log(respuesta);
       if (respuesta && respuesta.mensaje) {
         showSnackbar(respuesta.mensaje, "success");
         limpiarCampos();
@@ -267,12 +348,14 @@ export const RegistroProgramacion = () => {
     }
   };
 
-  const handleEstablecimientoChange = async (e) => {
+  const handleEstablecimientoChange = (e) => {
     const establecimientoSeleccionado = e.target.value;
-    setDatosPProgC({
-      ...datosPProgC,
-      id_establecimiento: establecimientoSeleccionado,
-    });
+    setDatosPProgC((prevDatos) => ({
+      ...prevDatos,
+      id_establecimiento: establecimientoSeleccionado
+        ? parseInt(establecimientoSeleccionado, 10)
+        : "",
+    }));
   };
 
   const limpiarCampos = useCallback(() => {
@@ -292,7 +375,11 @@ export const RegistroProgramacion = () => {
       codigo_cie_prog: "",
       descripcion_cie_prog: "",
       procedimiento_quirurgico: "",
-      id_establecimiento: esAdmin ? "" : "1",
+      id_establecimiento: esAdmin
+        ? ""
+        : sessionStorage.getItem("id_establecimiento")
+        ? parseInt(sessionStorage.getItem("id_establecimiento"), 10)
+        : "",
     });
   }, [esAdmin]);
 
@@ -322,6 +409,9 @@ export const RegistroProgramacion = () => {
         {esAdmin && (
           <FormSection title="Datos del Establecimiento">
             <Grid container spacing={3}>
+              {!datosPProgC.id_establecimiento && (
+                <em>Antes de continuar debe seleccionar un Establecimiento</em>
+              )}
               <FormControl
                 fullWidth
                 size="small"
@@ -329,14 +419,14 @@ export const RegistroProgramacion = () => {
                 disabled={formLoading}
               >
                 <InputLabel id="establecimiento-label">
-                  Establecimiento
+                  Seleccione un Establecimiento
                 </InputLabel>
                 <Select
                   labelId="establecimiento-label"
                   value={datosPProgC.id_establecimiento}
-                  label="Establecimiento"
+                  label="Seleccione un Establecimiento"
                   onChange={handleEstablecimientoChange}
-                  disabled={!esAdmin}
+                  disabled={!esAdmin || formLoading}
                 >
                   <MenuItem value="">
                     <em>Seleccione</em>
@@ -354,8 +444,6 @@ export const RegistroProgramacion = () => {
 
         <FormSection title="Información del Paciente">
           <Grid container spacing={3}>
-            {" "}
-            {/* Aumentado el spacing para más aire */}
             <Grid size={{ xs: 12, sm: 4 }}>
               <FormControl
                 fullWidth
@@ -375,12 +463,11 @@ export const RegistroProgramacion = () => {
                   <MenuItem value="">
                     <em>Seleccione</em>
                   </MenuItem>
-                  {Array.isArray(tipoDocumento) &&
-                    tipoDocumento.map((doc) => (
-                      <MenuItem key={doc.id} value={doc.id}>
-                        {doc.nombre}
-                      </MenuItem>
-                    ))}
+                  <MenuItem value="1">DNI</MenuItem>
+                  <MenuItem value="2">Carnet de Extranjeria</MenuItem>
+                  <MenuItem value="3">Pasaporte</MenuItem>
+                  <MenuItem value="4">DIE</MenuItem>
+                  <MenuItem value="6">CNV</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -563,12 +650,14 @@ export const RegistroProgramacion = () => {
                   <MenuItem value="">
                     <em>Seleccione un servicio</em>
                   </MenuItem>
-                  {Array.isArray(tipoServicio) &&
-                    tipoServicio.map((servicio) => (
-                      <MenuItem key={servicio.id} value={servicio.id}>
-                        {servicio.descripcion}
-                      </MenuItem>
-                    ))}
+                  <MenuItem value="2">Cirugia</MenuItem>
+                  <MenuItem value="3">Ginecologia</MenuItem>
+                  <MenuItem value="4">Obtetricia-Partos</MenuItem>
+                  <MenuItem value="6">Urologia</MenuItem>
+                  <MenuItem value="7">Otorrino</MenuItem>
+                  <MenuItem value="9">Puerperio Mediato</MenuItem>
+                  <MenuItem value="1011">Traumatologia</MenuItem>
+                  <MenuItem value="1012">Oftalmologia</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -710,6 +799,36 @@ export const RegistroProgramacion = () => {
                   <em>Seleccione</em>
                 </MenuItem>
                 <MenuItem value="cesarea">Cesarea</MenuItem>
+                <MenuItem value="hernioplastia">Hernioplastía</MenuItem>
+                <MenuItem value="prostactectomia">Prostactectomia</MenuItem>
+                <MenuItem value="colecistectomia">Colecistectomia</MenuItem>
+                <MenuItem value="FACO+LIO">FACO + LIO</MenuItem>
+                {/* <MenuItem value="cesarea">Cesarea</MenuItem>
+                <MenuItem value="in">In</MenuItem>
+                <MenuItem value="colelap">Colelap</MenuItem>
+                <MenuItem value="colecistectomia">Colecistectomia</MenuItem>
+                <MenuItem value="hernioplastia">Hernioplastía</MenuItem>
+                <MenuItem value="hemorroidectomia">Hemorroidectomía</MenuItem>
+                <MenuItem value="eventroplastia">Eventroplastia</MenuItem>
+                <MenuItem value="fistulectomia">Fistulectomía</MenuItem>
+                <MenuItem value="quistectomia">Quistectomía</MenuItem>
+                <MenuItem value="histerectomia">Histerectomía</MenuItem>
+                <MenuItem value="colporrafia">Colporrafia</MenuItem>
+                <MenuItem value="traumatologia">Traumatología</MenuItem>
+                <MenuItem value="otorrinolaringologia">
+                  Otorrinolaringologia
+                </MenuItem>
+                <MenuItem value="urologia">Urología</MenuItem>
+                <MenuItem value="sepsis">Sepsis</MenuItem>
+                <MenuItem value="legrado uterino">Legrado uterino</MenuItem>
+                <MenuItem value="otras ginecologicas">
+                  Otras ginecológicas
+                </MenuItem>
+                <MenuItem value="oftalmologia">Oftalmología</MenuItem>
+                <MenuItem value="otra cirugia general">
+                  Otra cirugia general
+                </MenuItem>
+                <MenuItem value="otro">otro</MenuItem> */}
               </Select>
             </FormControl>
           </Grid>
@@ -728,6 +847,7 @@ export const RegistroProgramacion = () => {
               variant="contained"
               color="primary"
               onClick={handleGuardar}
+              startIcon={<SaveTwoToneIcon />}
               disabled={formLoading}
               sx={{
                 width: { xs: "100%", sm: "auto" }, // 100% de ancho en móvil, ancho automático en escritorio
@@ -742,6 +862,7 @@ export const RegistroProgramacion = () => {
               variant="outlined"
               color="secondary"
               onClick={limpiarCampos}
+              startIcon={<ClearAllIcon />}
               disabled={formLoading}
               sx={{
                 width: { xs: "100%", sm: "auto" }, // 100% de ancho en móvil, ancho automático en escritorio

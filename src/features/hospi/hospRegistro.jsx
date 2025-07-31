@@ -13,6 +13,8 @@ import {
   Box,
   Typography,
 } from "@mui/material";
+import ClearAllIcon from "@mui/icons-material/ClearAll";
+import SaveTwoToneIcon from "@mui/icons-material/SaveTwoTone";
 import Autocomplete from "@mui/material/Autocomplete";
 // Componentes de @mui/x-date-pickers
 import {
@@ -22,7 +24,7 @@ import {
 } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs"; // Importar dayjs para manejar los estados de fecha/hora
-
+import "dayjs/locale/es";
 import { useNavigate } from "react-router-dom";
 // import { CustomSnackbar } from "../../components/CustomSnackbar";
 // import { CustomDialog } from "../../components/CustomDialog";
@@ -42,9 +44,6 @@ import { useCIEAutocomplete } from "../../hooks/useCIEAutocomplete";
 import { FormSection } from "../layout/FormSection";
 // import { useAlerts } from "../../hooks/useAlerts";
 
-// Componente para el campo de Establecimiento (solo para administradores)
-// Este componente DEBE ser definido fuera de RegistrarHospi
-// O idealmente en su propio archivo, por ejemplo: src/components/AdminEstablishmentSelect.jsx
 const obtenerFecha = () => {
   const fecha = dayjs();
   return fecha.format("YYYY-MM-DD"); // Formato YYYY-MM-DD
@@ -73,17 +72,17 @@ export const RegistroHospi = () => {
   const [camasDisponibles, setCamasDisponibles] = useState([]);
   const navigate = useNavigate();
 
-  const [datosPHosp, setDatos] = useState({
+  const [datosPHosp, setDatosPHosp] = useState({
     id_tipo_doc: "",
     nro_doc_pac: "",
     nombres_paciente: "",
-    fecha_nac_pac: "",
+    fecha_nac_pac: null,
     sexo_pac: "",
     edad: "",
     id_tipo_servicio: "",
     id_cama: "",
     fecha_ingreso: obtenerFecha(),
-    hora_ingreso: "",
+    hora_ingreso: null,
     codigo_cie_hosp1: "",
     descripcion_cie_hosp1: "",
     codigo_cie_hosp2: "",
@@ -91,7 +90,9 @@ export const RegistroHospi = () => {
     codigo_cie_hosp3: "",
     descripcion_cie_hosp3: "",
     observacion: "",
-    id_establecimiento: esAdmin ? "" : "1",
+    id_establecimiento: esAdmin
+      ? ""
+      : sessionStorage.getItem("id_establecimiento") || "1",
   });
 
   const [isVisible, setIsVisible] = useState(false);
@@ -128,7 +129,7 @@ export const RegistroHospi = () => {
   }, []);
 
   const updateFormData = useCallback((callback) => {
-    setDatos((prev) => callback(prev));
+    setDatosPHosp((prev) => callback(prev));
   }, []);
 
   const cie1Props = useCIEAutocomplete(
@@ -169,6 +170,16 @@ export const RegistroHospi = () => {
         if (esAdmin) {
           const datosEstab = await listarEstablecimientos();
           setEstablecimientos(datosEstab.establecimientos || []);
+        } else {
+          // Para usuarios no administradores, el establecimiento es fijo
+          const userEstablecimientoId =
+            sessionStorage.getItem("id_establecimiento");
+          if (userEstablecimientoId) {
+            setDatosPHosp((prev) => ({
+              ...prev,
+              id_establecimiento: userEstablecimientoId,
+            }));
+          }
         }
       } catch (error) {
         console.error("Error al cargar datos iniciales:", error);
@@ -181,7 +192,14 @@ export const RegistroHospi = () => {
       }
     };
     cargarDatosIniciales();
-  }, [esAdmin, showSnackbar, datosPHosp.id_establecimiento]);
+  }, [esAdmin, showSnackbar]);
+  //para manejar varios ingresos de fechas
+  const handleDateChange = useCallback((name, date) => {
+    setDatosPHosp((prevDatos) => ({
+      ...prevDatos,
+      [name]: date,
+    }));
+  }, []);
 
   const handleBuscarPaciente = async (event) => {
     if (event.key === "Enter") {
@@ -209,24 +227,26 @@ export const RegistroHospi = () => {
             "¿Desea registrar al paciente?",
             () => {
               closeDialog();
-              navigate("/dashboard/datosPaciente");
+              navigate("/confPacientes");
             },
             () => {
               closeDialog();
-              setDatos((prev) => ({
+              setDatosPHosp((prev) => ({
                 ...prev,
                 nombres_paciente: "",
-                fecha_nac_pac: "",
+                fecha_nac_pac: null,
                 sexo_pac: "",
                 edad: "",
               }));
             }
           );
         } else {
-          setDatos((prevDatos) => ({
+          setDatosPHosp((prevDatos) => ({
             ...prevDatos,
             nombres_paciente: resultado.nombres_paciente || "",
-            fecha_nac_pac: resultado.fecha_nac_pac || "",
+            fecha_nac_pac: resultado.fecha_nac_pac
+              ? dayjs(resultado.fecha_nac_pac)
+              : null,
             sexo_pac: resultado.sexo_pac || "",
             edad: resultado.edad || "",
           }));
@@ -241,64 +261,106 @@ export const RegistroHospi = () => {
     }
   };
 
-  useEffect(() => {
-    const fetchCamas = async () => {
-      if (datosPHosp.id_tipo_servicio && datosPHosp.fecha_ingreso) {
-        setFormLoading(true);
-        try {
-          const camas = await listarCamasPorServicio(
-            datosPHosp.id_tipo_servicio,
-            datosPHosp.fecha_ingreso
-          );
-          setCamasDisponibles(camas);
-          if (camas.length > 0) {
-            if (
-              !datosPHosp.id_cama ||
-              !camas.some((c) => c.id === datosPHosp.id_cama)
-            ) {
-              setDatos((prev) => ({
-                ...prev,
-                id_cama: camas[0].id,
-              }));
-            }
-          } else {
-            setDatos((prev) => ({
+  const fetchCamas = async () => {
+    // Validar si es administrador y no ha seleccionado establecimiento
+    if (esAdmin && !datosPHosp.id_establecimiento) {
+      showSnackbar(
+        "Por favor, seleccione un establecimiento primero.",
+        "warning"
+      );
+      setCamasDisponibles([]); // Limpiar camas si no hay establecimiento seleccionado
+      setDatosPHosp((prev) => ({ ...prev, id_cama: "" })); // Limpiar cama seleccionada
+      return; // Detener la ejecución
+    }
+
+    if (datosPHosp.id_tipo_servicio && datosPHosp.fecha_ingreso) {
+      setFormLoading(true);
+      try {
+        const camas = await listarCamasPorServicio(
+          datosPHosp.id_establecimiento,
+          datosPHosp.id_tipo_servicio,
+          datosPHosp.fecha_ingreso
+        );
+        setCamasDisponibles(camas);
+        if (camas.length > 0) {
+          if (
+            !datosPHosp.id_cama ||
+            !camas.some((c) => c.id === datosPHosp.id_cama)
+          ) {
+            setDatosPHosp((prev) => ({
               ...prev,
-              id_cama: "",
+              id_cama: camas[0].id,
             }));
-            showSnackbar(
-              "No hay camas disponibles para este servicio en la fecha seleccionada.",
-              "info"
-            );
           }
-        } catch (error) {
-          console.error("Error al obtener camas:", error);
-          showSnackbar("Error al obtener camas disponibles.", "error");
-        } finally {
-          setFormLoading(false);
+        } else {
+          setDatosPHosp((prev) => ({
+            ...prev,
+            id_cama: "",
+          }));
+          showSnackbar(
+            "No hay camas disponibles para este servicio en la fecha seleccionada.",
+            "info"
+          );
         }
-      } else {
-        setCamasDisponibles([]);
-        setDatos((prev) => ({
-          ...prev,
-          id_cama: "",
-        }));
+      } catch (error) {
+        console.error("Error al obtener camas:", error);
+        showSnackbar("Error al obtener camas disponibles.", "error");
+      } finally {
+        setFormLoading(false);
       }
-    };
-    fetchCamas();
+    } else {
+      setCamasDisponibles([]);
+      setDatosPHosp((prev) => ({
+        ...prev,
+        id_cama: "",
+      }));
+    }
+  };
+
+  useEffect(() => {
+    const establecimientoListo = esAdmin
+      ? !!datosPHosp.id_establecimiento
+      : true;
+
+    if (
+      establecimientoListo &&
+      datosPHosp.id_tipo_servicio &&
+      datosPHosp.fecha_ingreso
+    ) {
+      fetchCamas();
+    } else {
+      // Si las condiciones no se cumplen, asegurar que las camas estén vacías
+      setCamasDisponibles([]);
+      setDatosPHosp((prev) => ({
+        ...prev,
+        id_cama: "",
+      }));
+    }
   }, [
     datosPHosp.id_tipo_servicio,
     datosPHosp.fecha_ingreso,
-    datosPHosp.id_cama,
+    datosPHosp.id_establecimiento,
+    esAdmin,
     showSnackbar,
   ]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setDatos((prevDatos) => ({
+    setDatosPHosp((prevDatos) => ({
       ...prevDatos,
       [name]: value,
     }));
+  };
+
+  const handleEstablecimientoChange = async (e) => {
+    const establecimientoSeleccionado = e.target.value;
+    setDatosPHosp((prev) => ({
+      ...prev,
+      id_establecimiento: establecimientoSeleccionado,
+      id_tipo_servicio: "", // Limpiar servicio y cama al cambiar establecimiento
+      id_cama: "",
+    }));
+    setCamasDisponibles([]);
   };
 
   const handleGuardar = async () => {
@@ -429,20 +491,12 @@ export const RegistroHospi = () => {
     }
   };
 
-  const handleEstablecimientoChange = async (e) => {
-    const establecimientoSeleccionado = e.target.value;
-    setDatos({
-      ...datosPHosp,
-      id_establecimiento: establecimientoSeleccionado,
-    });
-  };
-
   const limpiarCampos = useCallback(() => {
-    setDatos({
+    setDatosPHosp({
       id_tipo_doc: "",
       nro_doc_pac: "",
       nombres_paciente: "",
-      fecha_nac_pac: "",
+      fecha_nac_pac: null,
       sexo_pac: "",
       edad: "",
       id_tipo_servicio: "",
@@ -456,7 +510,9 @@ export const RegistroHospi = () => {
       codigo_cie_hosp3: "",
       descripcion_cie_hosp3: "",
       observacion: "",
-      id_establecimiento: esAdmin ? "" : "1",
+      id_establecimiento: esAdmin
+        ? ""
+        : sessionStorage.getItem("id_establecimiento") || "1",
     });
     setIsVisible(false); // Ocultar CIE adicionales al limpiar
   }, [esAdmin, obtenerFecha]);
@@ -478,7 +534,7 @@ export const RegistroHospi = () => {
   };
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDayjs}>
+    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="es">
       <BaseFormLayout
         title="Registro de Ingreso Hospitalario"
         snackbar={snackbar}
@@ -487,6 +543,9 @@ export const RegistroHospi = () => {
         {esAdmin && (
           <FormSection title="Datos del Establecimiento">
             <Grid container spacing={3}>
+              {!datosPHosp.id_establecimiento && (
+                <em>Antes de continuar debe seleccionar un Establecimiento</em>
+              )}
               <FormControl
                 fullWidth
                 size="small"
@@ -494,14 +553,14 @@ export const RegistroHospi = () => {
                 disabled={formLoading}
               >
                 <InputLabel id="establecimiento-label">
-                  Establecimiento
+                  Seleccione un Establecimiento
                 </InputLabel>
                 <Select
                   labelId="establecimiento-label"
                   value={datosPHosp.id_establecimiento}
-                  label="Establecimiento"
+                  label="Seleccione un Establecimiento"
                   onChange={handleEstablecimientoChange}
-                  disabled={!esAdmin}
+                  disabled={!esAdmin || formLoading}
                 >
                   <MenuItem value="">
                     <em>Seleccione</em>
@@ -519,8 +578,6 @@ export const RegistroHospi = () => {
 
         <FormSection title="Información del Paciente">
           <Grid container spacing={3}>
-            {" "}
-            {/* Aumentado el spacing para más aire */}
             <Grid size={{ xs: 12, sm: 4 }}>
               <FormControl
                 fullWidth
@@ -540,12 +597,11 @@ export const RegistroHospi = () => {
                   <MenuItem value="">
                     <em>Seleccione</em>
                   </MenuItem>
-                  {Array.isArray(tipoDocumento) &&
-                    tipoDocumento.map((doc) => (
-                      <MenuItem key={doc.id} value={doc.id}>
-                        {doc.nombre}
-                      </MenuItem>
-                    ))}
+                  <MenuItem value="1">DNI</MenuItem>
+                  <MenuItem value="2">Carnet de Extranjeria</MenuItem>
+                  <MenuItem value="3">Pasaporte</MenuItem>
+                  <MenuItem value="4">DIE</MenuItem>
+                  <MenuItem value="6">CNV</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -578,9 +634,9 @@ export const RegistroHospi = () => {
             <Grid size={{ xs: 12, sm: 4 }}>
               <DatePicker
                 label="Fecha de Nacimiento"
-                size="small"
                 name="fecha_nac_pac"
-                value={dayjs(datosPHosp.fecha_nac_pac)}
+                value={datosPHosp.fecha_nac_pac}
+                onChange={(date) => handleDateChange("fecha_nac_pac", date)}
                 format="DD/MM/YYYY"
                 slotProps={{
                   textField: {
@@ -646,6 +702,9 @@ export const RegistroHospi = () => {
                   value={datosPHosp.id_tipo_servicio}
                   label="Tipo de Servicio *"
                   onChange={handleChange}
+                  disabled={
+                    formLoading || (esAdmin && !datosPHosp.id_establecimiento)
+                  }
                 >
                   <MenuItem value="">
                     <em>Seleccione un servicio</em>
@@ -668,12 +727,7 @@ export const RegistroHospi = () => {
                     ? dayjs(datosPHosp.fecha_ingreso)
                     : null
                 }
-                onChange={(newValue) => {
-                  const formattedDate = newValue
-                    ? newValue.format("YYYY-MM-DD")
-                    : null;
-                  setDatos({ ...datosPHosp, fecha_ingreso: formattedDate });
-                }}
+                onChange={(date) => handleDateChange("fecha_ingreso", date)}
                 format="DD/MM/YYYY"
                 slotProps={{
                   textField: {
@@ -721,7 +775,7 @@ export const RegistroHospi = () => {
                 name="hora_ingreso"
                 value={dayjs(datosPHosp.hora_ingreso, "HH:mm")}
                 onChange={(newValue) =>
-                  setDatos({
+                  setDatosPHosp({
                     ...datosPHosp,
                     hora_ingreso: newValue ? newValue.format("HH:mm") : "",
                   })
@@ -957,6 +1011,7 @@ export const RegistroHospi = () => {
               variant="contained"
               color="primary"
               onClick={handleGuardar}
+              startIcon={<SaveTwoToneIcon />}
               disabled={formLoading}
               sx={{
                 width: { xs: "100%", sm: "auto" }, // 100% de ancho en móvil, ancho automático en escritorio
@@ -971,6 +1026,7 @@ export const RegistroHospi = () => {
               variant="outlined"
               color="secondary"
               onClick={limpiarCampos}
+              startIcon={<ClearAllIcon />}
               disabled={formLoading}
               sx={{
                 width: { xs: "100%", sm: "auto" }, // 100% de ancho en móvil, ancho automático en escritorio
